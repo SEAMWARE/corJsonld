@@ -1,0 +1,6 @@
+#ifndef SWJSONLD_VERSION_H
+#define SWJSONLD_VERSION_H
+
+#define SWJSONLD_VERSION "0.1.0"
+
+#endif  // SWJSONLD_VERSION_H
