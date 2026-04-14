@@ -17,6 +17,18 @@
 
 // -----------------------------------------------------------------------------
 //
+// SwldVocabExpandCheck - callback to validate a short-name before @vocab expansion
+//
+// Called with the original short-name. Returns true to allow, false to reject.
+//
+typedef bool (*SwldVocabExpandCheck)(const char* shortName);
+
+extern void swldSetVocabExpandCheck(SwldVocabExpandCheck fn);
+
+
+
+// -----------------------------------------------------------------------------
+//
 // swldExpand -
 //
 extern char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem** itemPP, bool* coreContextP);

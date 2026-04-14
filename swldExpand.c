@@ -22,6 +22,19 @@
 
 // -----------------------------------------------------------------------------
 //
+// vocabExpandCheck - callback for name validation before @vocab expansion
+//
+static SwldVocabExpandCheck vocabExpandCheck = NULL;
+
+void swldSetVocabExpandCheck(SwldVocabExpandCheck fn)
+{
+  vocabExpandCheck = fn;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // swldAlreadyExpanded -
 //
 bool swldAlreadyExpanded(const char* value)
@@ -189,6 +202,9 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
 
   if (vocab != NULL)
   {
+    if (vocabExpandCheck != NULL && vocabExpandCheck(name) == false)
+      return NULL;
+
     int vocabLen = strlen(vocab);
     int nameLen  = strlen(name);
     char* expanded = (char*) kaAlloc(kaP, vocabLen + nameLen + 1);
