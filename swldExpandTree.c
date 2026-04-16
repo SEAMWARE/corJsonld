@@ -48,6 +48,18 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
 
     if (expanded != NULL && expanded[0] != '@')
     {
+      //
+      // NB: @type:@vocab / @type:@id value coercion is intentionally NOT
+      // performed here, even though several core-context terms declare it
+      // (propertyNames / relationshipNames / watchedAttributes / datasetId
+      // / object / etc.). Doing the coercion would silently launder
+      // sketchy user input — datasetId="not-a-uri" expanded via @vocab
+      // becomes a "valid" IRI under the default-context prefix, slipping
+      // past the URI validators that run AFTER expansion. Caches that
+      // need expanded values handle the expansion themselves at cache
+      // ingest time (see ldSubCache.c notifAttrsV / ldRegCache.c
+      // propertyNamesV-relationshipNamesV).
+      //
       childP->name = expanded;
     }
     else if (expanded != NULL && strcmp(expanded, "@type") == 0)
