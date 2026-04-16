@@ -15,7 +15,10 @@
 #include "kjson/kjParse.h"                           // kjParse
 #include "kjson/kjLookup.h"                          // kjLookup
 #include "kjson/kjBufferCreate.h"                    // kjBufferCreate
+#include "khash/khash.h"                             // KHashTable, KHashListItem
 #include "swJsonld/swldTraceLevels.h"                // SwldTInit
+#include "swJsonld/SwldItem.h"                       // SwldItem
+#include "swJsonld/SwldContext.h"                    // SwldContext
 #include "swJsonld/swldContextParse.h"               // swldContextFromObject
 #include "swJsonld/SwldContextCache.h"               // SwldContextCache
 #include "swJsonld/swldCache.h"                      // swldCacheInsert
@@ -71,6 +74,53 @@ SwldDownloadFunction swldDownloadGet(void)
 
 // -----------------------------------------------------------------------------
 //
+// coreContextRewriteToShort - rewrite each core item's id to its name
+//
+// The core-context shortcut keeps NGSI-LD core terms in their short form
+// throughout the broker pipeline (parse, cache, DB, render). Done here at
+// init time, exactly once: swldExpand naturally returns the short name for
+// any core term thereafter, with no per-call branching.
+//
+// Items whose id is a JSON-LD keyword (e.g. "id" -> "@id", "type" -> "@type")
+// must keep their id intact so the @-keyword bypass in expandObject and the
+// @type-value branch continue to fire.
+//
+static void coreContextRewriteToShort(SwldContext* contextP)
+{
+  if (contextP == NULL)
+    return;
+
+  if (contextP->isArray == true)
+  {
+    for (int ix = 0; ix < contextP->contexts; ix++)
+      coreContextRewriteToShort(contextP->contextV[ix]);
+    return;
+  }
+
+  if (contextP->nameHT == NULL)
+    return;
+
+  for (int slot = 0; slot < contextP->nameHT->arraySize; slot++)
+  {
+    for (KHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
+    {
+      SwldItem* itemP = (SwldItem*) lP->data;
+
+      if (itemP == NULL || itemP->id == NULL || itemP->name == NULL)
+        continue;
+
+      if (itemP->id[0] == '@')
+        continue;
+
+      itemP->id = itemP->name;
+    }
+  }
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // coreContextFromEmbedded - parse the compiled-in core context body
 //
 static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
@@ -106,6 +156,12 @@ static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
 
   if (contextP != NULL)
   {
+    //
+    // Core-context shortcut: rewrite each item's id to its name so the
+    // expander returns short forms for core terms with zero per-call work.
+    //
+    coreContextRewriteToShort(contextP);
+
     //
     // Preserve the compiled-in body for GET /jsonldContexts/{id}.
     // swldCoreContextBody lives for the process lifetime, so we point at
@@ -156,6 +212,8 @@ int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downl
   swldCoreContextP = swldContextFromUrl(coreContextUrl, kaP);
   if (swldCoreContextP == NULL)
     return -1;
+
+  coreContextRewriteToShort(swldCoreContextP);
 
   return 0;
 }
