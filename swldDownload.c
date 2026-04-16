@@ -19,6 +19,7 @@
 #include "kjson/kjBufferCreate.h"                    // kjBufferCreate
 #include "swJsonld/SwldContext.h"                     // SwldContext
 #include "swJsonld/swldTraceLevels.h"                // SwldTDownload
+#include "swJsonld/SwldContextCache.h"               // SwldContextCache (for swldCacheGet()->kaP)
 #include "swJsonld/swldCache.h"                      // swldCacheLookup, swldCacheInsert
 #include "swJsonld/swldContextParse.h"               // swldContextFromObject, swldContextFromTree
 #include "swJsonld/swldInit.h"                       // SwldDownloadFunction
@@ -50,6 +51,20 @@ extern bool swldCacheDownloadingCheck(const char* url);
 //
 SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
 {
+  //
+  // Cached contexts need to outlive the request — each request arena gets
+  // reset/reused, so storing SwldContext pointers that reference request-
+  // scoped memory leaves the cache with dangling fields. Use the
+  // process-lifetime cache allocator for anything that will be inserted.
+  // The caller's kaP is still used locally to build the parse tree (freed
+  // when the arena resets; we only need it long enough to populate the
+  // SwldContext).
+  //
+  extern SwldContextCache* swldCacheGet(void);
+  KAlloc* storeP = swldCacheGet()->kaP;
+  if (storeP == NULL)
+    storeP = kaP;
+
   //
   // Step 1: Check cache
   //
@@ -101,11 +116,17 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   }
 
   //
+  // Preserve the downloaded body for GET /jsonldContexts/{id}.
+  // kjParse is destructive — capture a pristine copy in the long-lived
+  // cache allocator before parsing.
+  //
+  char* bodyCopy = kaStrdup(storeP, body);
+
+  //
   // Step 4: Parse the JSON body
   //
-  // The body from downloadFn is destructively parsed by kjParse.
-  // We need to parse into the caller's kaP allocator so the context
-  // outlives this function.
+  // The parse tree is only needed while we build the SwldContext; the
+  // caller's kaP (request arena) is fine for that.
   //
   Kjson  kjson;
   Kjson* kjsonP = kjBufferCreate(&kjson, kaP);
@@ -138,14 +159,14 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
 
   if (atContextP->type == KjObject)
   {
-    contextP = swldContextFromObject(atContextP, kaP, url);
+    contextP = swldContextFromObject(atContextP, storeP, url);
   }
   else if (atContextP->type == KjArray)
   {
-    contextP = swldContextFromTree(atContextP, kaP);
+    contextP = swldContextFromTree(atContextP, storeP);
 
     if (contextP != NULL)
-      contextP->url = kaStrdup(kaP, url);
+      contextP->url = kaStrdup(storeP, url);
   }
   else if (atContextP->type == KjString)
   {
@@ -163,7 +184,12 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   if (contextP != NULL)
   {
     if (contextP->url == NULL)
-      contextP->url = kaStrdup(kaP, url);
+      contextP->url = kaStrdup(storeP, url);
+
+    if (contextP->body == NULL)
+      contextP->body = bodyCopy;
+
+    contextP->kind = SwldKindImplicit;
 
     swldCacheInsert(contextP);
   }

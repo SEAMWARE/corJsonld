@@ -9,6 +9,9 @@
 #include <string.h>                                  // strcmp
 #include <time.h>                                    // time
 
+#include "kalloc/KAlloc.h"                            // KAlloc, kaAlloc
+#include "kalloc/kaAlloc.h"                           // kaAlloc
+
 #include "swJsonld/SwldContextCache.h"               // SwldContextCache
 #include "swJsonld/swldTraceLevels.h"                // SwldTCache
 #include "swJsonld/swldCache.h"                      // Own interface
@@ -120,6 +123,47 @@ void swldCacheInsert(SwldContext* contextP)
   contextP->usedAt    = contextP->createdAt;
   cacheP->first       = contextP;
   cacheP->count      += 1;
+
+  pthread_mutex_unlock(&cacheP->mutex);
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// swldCacheSnapshot -
+//
+void swldCacheSnapshot(KAlloc* allocP, SwldContext*** arrPP, int* nP)
+{
+  SwldContextCache* cacheP = swldCacheGet();
+
+  pthread_mutex_lock(&cacheP->mutex);
+
+  int n = cacheP->count;
+
+  if (n == 0)
+  {
+    *arrPP = NULL;
+    *nP    = 0;
+    pthread_mutex_unlock(&cacheP->mutex);
+    return;
+  }
+
+  SwldContext** arr = (SwldContext**) kaAlloc(allocP, n * sizeof(SwldContext*));
+  if (arr == NULL)
+  {
+    *arrPP = NULL;
+    *nP    = 0;
+    pthread_mutex_unlock(&cacheP->mutex);
+    return;
+  }
+
+  int ix = 0;
+  for (SwldContext* p = cacheP->first; p != NULL && ix < n; p = p->next)
+    arr[ix++] = p;
+
+  *arrPP = arr;
+  *nP    = ix;
 
   pthread_mutex_unlock(&cacheP->mutex);
 }

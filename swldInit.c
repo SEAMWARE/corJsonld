@@ -105,7 +105,16 @@ static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
   SwldContext* contextP = swldContextFromObject(atContextP, kaP, SWLD_CORE_CONTEXT_URL);
 
   if (contextP != NULL)
+  {
+    //
+    // Preserve the compiled-in body for GET /jsonldContexts/{id}.
+    // swldCoreContextBody lives for the process lifetime, so we point at
+    // it directly rather than duplicating.
+    //
+    contextP->body = (char*) swldCoreContextBody;
+    contextP->kind = SwldKindImplicit;
     swldCacheInsert(contextP);
+  }
 
   free(body);
   return contextP;

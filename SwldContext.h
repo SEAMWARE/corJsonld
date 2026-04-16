@@ -15,12 +15,27 @@
 
 // -----------------------------------------------------------------------------
 //
+// SwldContextKind - per NGSI-LD § 5.13.1
+//
+typedef enum SwldContextKind
+{
+  SwldKindImplicit = 0,
+  SwldKindCached,
+  SwldKindHosted
+} SwldContextKind;
+
+
+
+// -----------------------------------------------------------------------------
+//
 // SwldContext -
 //
 typedef struct SwldContext
 {
   char*                      url;         // URL of this context (NULL for inline)
   char*                      id;          // Identifier (URL or generated)
+  char*                      body;        // Raw JSON body as received (may be NULL)
+  SwldContextKind            kind;
   KHashTable*                nameHT;      // name -> SwldItem  (expansion)
   KHashTable*                valueHT;     // IRI  -> SwldItem  (compaction)
   char*                      vocab;       // @vocab value, or NULL
