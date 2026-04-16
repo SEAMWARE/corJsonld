@@ -32,7 +32,8 @@ LIB_SOURCES   = swJsonld.c          \
                 swldCompactTree.c   \
                 swldPrefixExpand.c  \
                 swldCache.c         \
-                swldDownload.c
+                swldDownload.c      \
+                swldIdGen.c
 
 LIB_OBJS      = $(LIB_SOURCES:c=o)
 

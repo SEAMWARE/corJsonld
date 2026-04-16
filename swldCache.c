@@ -28,9 +28,12 @@ extern SwldContextCache* swldCacheGet(void);
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheLookup -
+// swldCacheLookup - lookup by identifier.
 //
-SwldContext* swldCacheLookup(const char* url)
+// For Implicit / Cached contexts the id equals the URL. For Hosted contexts
+// the id is broker-assigned. All callers use the same entry point.
+//
+SwldContext* swldCacheLookup(const char* idOrUrl)
 {
   SwldContextCache* cacheP = swldCacheGet();
 
@@ -40,7 +43,8 @@ SwldContext* swldCacheLookup(const char* url)
 
   while (contextP != NULL)
   {
-    if ((contextP->url != NULL) && (strcmp(contextP->url, url) == 0))
+    if (((contextP->id  != NULL) && (strcmp(contextP->id,  idOrUrl) == 0)) ||
+        ((contextP->url != NULL) && (strcmp(contextP->url, idOrUrl) == 0)))
     {
       contextP->usedAt = (double) time(NULL);
       pthread_mutex_unlock(&cacheP->mutex);
@@ -60,9 +64,13 @@ SwldContext* swldCacheLookup(const char* url)
 //
 // swldCacheInsert -
 //
+// Hosted contexts have no URL (only a broker-assigned id); downloaded ones
+// have both and by convention id == url. Either key is acceptable so long as
+// at least one is set.
+//
 void swldCacheInsert(SwldContext* contextP)
 {
-  if (contextP == NULL || contextP->url == NULL)
+  if (contextP == NULL || (contextP->url == NULL && contextP->id == NULL))
     return;
 
   SwldContextCache* cacheP = swldCacheGet();
@@ -70,13 +78,16 @@ void swldCacheInsert(SwldContext* contextP)
   pthread_mutex_lock(&cacheP->mutex);
 
   //
-  // Check for duplicate
+  // Check for duplicate — match on id if available, fall back to url.
   //
+  const char* key = (contextP->id != NULL) ? contextP->id : contextP->url;
+
   SwldContext* existingP = cacheP->first;
 
   while (existingP != NULL)
   {
-    if ((existingP->url != NULL) && (strcmp(existingP->url, contextP->url) == 0))
+    if (((existingP->id  != NULL) && (strcmp(existingP->id,  key) == 0)) ||
+        ((existingP->url != NULL) && (strcmp(existingP->url, key) == 0)))
     {
       pthread_mutex_unlock(&cacheP->mutex);
       return;
@@ -125,6 +136,55 @@ void swldCacheInsert(SwldContext* contextP)
   cacheP->count      += 1;
 
   pthread_mutex_unlock(&cacheP->mutex);
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// swldCacheRemove - detach an entry from the cache by id or url.
+//
+// Returns the detached SwldContext, or NULL if not found. The caller owns
+// the returned entry — the cache will not touch it again. Because
+// SwldContexts live in the cache's long-lived allocator and that allocator
+// has no per-object free, we don't free memory here; the caller can reuse
+// or abandon it (small leak, bounded by number of DELETEs per process).
+//
+SwldContext* swldCacheRemove(const char* idOrUrl)
+{
+  if (idOrUrl == NULL)
+    return NULL;
+
+  SwldContextCache* cacheP = swldCacheGet();
+
+  pthread_mutex_lock(&cacheP->mutex);
+
+  SwldContext*  prevP = NULL;
+  SwldContext*  p     = cacheP->first;
+
+  while (p != NULL)
+  {
+    if (((p->id  != NULL) && (strcmp(p->id,  idOrUrl) == 0)) ||
+        ((p->url != NULL) && (strcmp(p->url, idOrUrl) == 0)))
+    {
+      if (prevP != NULL)
+        prevP->next = p->next;
+      else
+        cacheP->first = p->next;
+
+      cacheP->count -= 1;
+      p->next = NULL;
+
+      pthread_mutex_unlock(&cacheP->mutex);
+      return p;
+    }
+
+    prevP = p;
+    p     = p->next;
+  }
+
+  pthread_mutex_unlock(&cacheP->mutex);
+  return NULL;
 }
 
 

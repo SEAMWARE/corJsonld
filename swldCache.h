@@ -33,6 +33,14 @@ extern void swldCacheInsert(SwldContext* contextP);
 
 // -----------------------------------------------------------------------------
 //
+// swldCacheRemove - detach an entry by id or url (returns it, or NULL).
+//
+extern SwldContext* swldCacheRemove(const char* idOrUrl);
+
+
+
+// -----------------------------------------------------------------------------
+//
 // swldCacheSnapshot - thread-safe snapshot of current cache entries.
 //
 // Allocates an array of (SwldContext*) pointers in allocP, in cache insertion
