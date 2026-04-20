@@ -89,25 +89,31 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
 
 // -----------------------------------------------------------------------------
 //
-// swldCompactTree -
+// swldCompactTreeWith -
 //
-void swldCompactTree(KjNode* treeP)
+void swldCompactTreeWith(KjNode* treeP, SwldContext* ctxP)
 {
-  if (treeP == NULL)
-    return;
-
-  SwldContext* coreP = swldCoreContext();
-
-  if (coreP == NULL)
+  if (treeP == NULL || ctxP == NULL)
     return;
 
   if (treeP->type == KjObject)
   {
-    compactObject(treeP, coreP, 0);
+    compactObject(treeP, ctxP, 0);
   }
   else if (treeP->type == KjArray)
   {
     for (KjNode* itemP = treeP->value.firstChildP; itemP != NULL; itemP = itemP->next)
-      compactObject(itemP, coreP, 0);
+      compactObject(itemP, ctxP, 0);
   }
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// swldCompactTree -
+//
+void swldCompactTree(KjNode* treeP)
+{
+  swldCompactTreeWith(treeP, swldCoreContext());
 }
