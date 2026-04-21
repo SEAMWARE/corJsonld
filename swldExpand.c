@@ -39,8 +39,6 @@ void swldSetVocabExpandCheck(SwldVocabExpandCheck fn)
 //
 bool swldAlreadyExpanded(const char* value)
 {
-  if (value == NULL)
-    return false;
   if (strncmp(value, "urn:", 4) == 0)
     return true;
   if (strncmp(value, "http://", 7) == 0)
@@ -125,9 +123,6 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
 
   if (coreContextP != NULL)
     *coreContextP = false;
-
-  if (name == NULL)
-    return NULL;
 
   //
   // Step 1: Already expanded (urn:/http:/https:/)
