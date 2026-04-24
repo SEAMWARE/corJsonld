@@ -108,50 +108,84 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
 //
 // swldExpandTree -
 //
+// Two kinds of body are handled:
+//
+//   Single object ({ ... })
+//     - Look for a root @context child. If present, parse it (string URL,
+//       inline object, or array of either — swldContextFromTree handles all
+//       three), use it to expand child names, and remove it from the tree.
+//
+//   Array body ([ ... , ... ]) — i.e. a batch op
+//     - JSON arrays can't carry a root @context. Per ld+json array semantics
+//       each element carries its own @context. For every object element
+//       extract+parse+strip+expand independently; non-object elements are
+//       left alone (batch-delete takes a list of id strings, so rejecting
+//       here would break it — the entity-batch service routines that DO
+//       require objects validate that for themselves).
+//
+// The returned SwldContext* is the representative context of the request
+// (used downstream for link-header emit / response compaction). For an
+// array body that's the first element's context; callers who care about
+// per-element contexts must track them out-of-band.
+//
+// @context is ALWAYS stripped from the tree here so nothing past the HTTP
+// boundary sees a stray @context (it would otherwise flow into service
+// routines as if it were a user attribute — subtle stored-Property leak).
+//
 SwldContext* swldExpandTree(KjNode* treeP, KAlloc* kaP)
 {
   if (treeP == NULL)
     return NULL;
 
-  //
-  // Extract @context from the tree (if present)
-  //
-  SwldContext* userContextP = NULL;
-  KjNode*     atContextP   = NULL;
-
-  if (treeP->type == KjObject)
-    atContextP = kjLookup(treeP, "@context");
-
-  if (atContextP != NULL)
-  {
-    userContextP = swldContextFromTree(atContextP, kaP);
-
-    //
-    // Remove @context from the tree
-    //
-    kjChildRemove(treeP, atContextP);
-  }
-
-  //
-  // Use user context if provided, otherwise core context
-  //
-  SwldContext* contextP = (userContextP != NULL) ? userContextP : swldCoreContext();
-
-  if (contextP == NULL)
-    return NULL;
-
-  //
-  // Expand the tree (single object or array of objects)
-  //
   if (treeP->type == KjObject)
   {
+    KjNode*      atContextP   = kjLookup(treeP, "@context");
+    SwldContext* userContextP = NULL;
+
+    if (atContextP != NULL)
+    {
+      userContextP = swldContextFromTree(atContextP, kaP);
+      kjChildRemove(treeP, atContextP);
+    }
+
+    SwldContext* contextP = (userContextP != NULL) ? userContextP : swldCoreContext();
+    if (contextP == NULL)
+      return NULL;
+
     expandObject(treeP, contextP, kaP, 0);
-  }
-  else if (treeP->type == KjArray)
-  {
-    for (KjNode* itemP = treeP->value.firstChildP; itemP != NULL; itemP = itemP->next)
-      expandObject(itemP, contextP, kaP, 0);
+    return contextP;
   }
 
-  return contextP;
+  if (treeP->type == KjArray)
+  {
+    SwldContext* firstContextP = NULL;
+
+    for (KjNode* itemP = treeP->value.firstChildP; itemP != NULL; itemP = itemP->next)
+    {
+      if (itemP->type != KjObject)
+        continue;
+
+      KjNode*      atContextP   = kjLookup(itemP, "@context");
+      SwldContext* elemContextP = NULL;
+
+      if (atContextP != NULL)
+      {
+        elemContextP = swldContextFromTree(atContextP, kaP);
+        kjChildRemove(itemP, atContextP);
+      }
+
+      SwldContext* useCtx = (elemContextP != NULL) ? elemContextP : swldCoreContext();
+      if (useCtx == NULL)
+        continue;
+
+      expandObject(itemP, useCtx, kaP, 0);
+
+      if (firstContextP == NULL)
+        firstContextP = useCtx;
+    }
+
+    return (firstContextP != NULL) ? firstContextP : swldCoreContext();
+  }
+
+  return NULL;
 }
