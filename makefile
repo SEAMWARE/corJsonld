@@ -22,7 +22,7 @@ LIB           = libswJsonld.a
 CC            = gcc
 INCLUDE       = -I..
 DFLAGS        =
-CFLAGS        = -O2 -Wall -fPIC -Wno-unused-function -fstack-protector-all $(DFLAGS) $(INCLUDE)
+CFLAGS        = -O2 -Wall -fPIC -Wno-unused-function -fstack-protector-all $(DFLAGS) $(INCLUDE) -MMD -MP
 LIB_SOURCES   = swJsonld.c          \
                 swldInit.c          \
                 swldContextParse.c  \
@@ -36,6 +36,7 @@ LIB_SOURCES   = swJsonld.c          \
                 swldIdGen.c
 
 LIB_OBJS      = $(LIB_SOURCES:c=o)
+LIB_DEPS      = $(LIB_SOURCES:c=d)
 
 SO_LDFLAGS    = -L../kalloc -L../kjson -L../kbase -L../klog -L../ktrace -L../khash
 SO_LIBS       = -lkalloc -lkjson -lkbase -lklog -lktrace -lkhash -lpthread
@@ -66,7 +67,9 @@ $(LIB_SO):	$(LIB_OBJS) $(LIB_SOURCES)
 
 
 %.o: %.c
-						$(CC) $(CFLAGS) -c $^ -o $@
+						$(CC) $(CFLAGS) -c $< -o $@
 
 %.i: %.c
 						$(CC) $(CFLAGS) -c $^ -E > $@
+
+-include $(LIB_DEPS)
