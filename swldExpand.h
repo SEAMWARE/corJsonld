@@ -37,6 +37,15 @@ extern char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, Sw
 
 // -----------------------------------------------------------------------------
 //
+// contextItemLookup - look up a term (an "item") by short name in a context
+//                     (handles array contexts). Returns the SwldItem or NULL.
+//
+extern SwldItem* contextItemLookup(SwldContext* contextP, const char* name);
+
+
+
+// -----------------------------------------------------------------------------
+//
 // swldAlreadyExpanded -
 //
 extern bool swldAlreadyExpanded(const char* value);

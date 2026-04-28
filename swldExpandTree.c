@@ -44,7 +44,14 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
     // Expand the name - but discard if it expands to an @-keyword
     //
     bool coreContext = false;
-    char* expanded = swldExpand(contextP, childP->name, kaP, NULL, &coreContext);
+    SwldItem* termItemP = NULL;
+    char* expanded = swldExpand(contextP, childP->name, kaP, &termItemP, &coreContext);
+
+    // @container: "@language" / "@index" — the value's keys are opaque
+    // (BCP-47 language tags or user-defined index strings), NOT terms.
+    // Don't recurse into those subtrees with the term-expander.
+    bool opaqueKeys = (termItemP != NULL &&
+                       (termItemP->container & SWLD_CONTAINER_OPAQUE_KEYS) != 0);
 
     if (expanded != NULL && expanded[0] != '@')
     {
@@ -90,8 +97,13 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
     }
 
     //
-    // Recurse into sub-objects and arrays of objects
+    // Recurse into sub-objects and arrays of objects.
+    // Skip recursion when the term's container marks the inner keys as
+    // opaque (see @container handling above).
     //
+    if (opaqueKeys)
+      continue;
+
     if (childP->type == KjObject)
       expandObject(childP, contextP, kaP, level + 1);
     else if (childP->type == KjArray)

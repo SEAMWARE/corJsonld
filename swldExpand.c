@@ -55,9 +55,12 @@ bool swldAlreadyExpanded(const char* value)
 
 // -----------------------------------------------------------------------------
 //
-// contextLookup - lookup in a context (handles arrays)
+// contextItemLookup - lookup a term by short name (handles array contexts).
 //
-static SwldItem* contextLookup(SwldContext* contextP, const char* name)
+// Used internally by swldExpand and externally by swldCompactTree (which
+// needs to consult @container before recursing into a term's value).
+//
+SwldItem* contextItemLookup(SwldContext* contextP, const char* name)
 {
   if (contextP == NULL)
     return NULL;
@@ -69,7 +72,7 @@ static SwldItem* contextLookup(SwldContext* contextP, const char* name)
     //
     for (int ix = contextP->contexts - 1; ix >= 0; ix--)
     {
-      SwldItem* itemP = contextLookup(contextP->contextV[ix], name);
+      SwldItem* itemP = contextItemLookup(contextP->contextV[ix], name);
 
       if (itemP != NULL)
         return itemP;
@@ -166,7 +169,7 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
   //
   // Step 4: Lookup in user context
   //
-  SwldItem* itemP = contextLookup(contextP, name);
+  SwldItem* itemP = contextItemLookup(contextP, name);
 
   if (itemP != NULL)
   {
@@ -181,7 +184,7 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
     //
     if (coreContextP != NULL)
     {
-      SwldItem* coreItemP = contextLookup(swldCoreContext(), name);
+      SwldItem* coreItemP = contextItemLookup(swldCoreContext(), name);
       if (coreItemP != NULL && coreItemP->id != NULL && itemP->id != NULL &&
           strcmp(coreItemP->id, itemP->id) == 0)
       {
@@ -195,7 +198,7 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
   //
   // Step 5: Lookup in core context
   //
-  itemP = contextLookup(swldCoreContext(), name);
+  itemP = contextItemLookup(swldCoreContext(), name);
   if (itemP != NULL)
   {
     if (itemPP != NULL)

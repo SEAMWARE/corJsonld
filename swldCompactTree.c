@@ -8,10 +8,12 @@
 #include <string.h>                                  // strcmp
 
 #include "kjson/KjNode.h"                            // KjNode, KjObject, KjArray
+#include "swJsonld/SwldItem.h"                       // SwldItem, SwldContainer*
 #include "swJsonld/SwldContext.h"                     // SwldContext
 #include "swJsonld/swldTraceLevels.h"                // SwldTCompact
 #include "swJsonld/swldInit.h"                       // swldCoreContext
 #include "swJsonld/swldCompact.h"                    // swldCompact
+#include "swJsonld/swldExpand.h"                      // contextItemLookup
 #include "swJsonld/swldCompactTree.h"                // Own interface
 
 
@@ -44,6 +46,12 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
     if (compacted != NULL)
       childP->name = (char*) compacted;
 
+    // @container: "@language" / "@index" — value's keys are opaque (BCP-47
+    // language tags or user-defined index strings). Never reverse-map them.
+    SwldItem* termItemP = contextItemLookup(coreP, childP->name);
+    bool opaqueKeys = (termItemP != NULL &&
+                       (termItemP->container & SWLD_CONTAINER_OPAQUE_KEYS) != 0);
+
     //
     // For "type" fields at entity level, also compact the string value (e.g. full URI -> "Vehicle")
     // At attribute level (level 1+), "type" values are NGSI-LD keywords, not expanded URIs.
@@ -73,8 +81,13 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
     }
 
     //
-    // Recurse into sub-objects and arrays of objects
+    // Recurse into sub-objects and arrays of objects.
+    // Skip recursion when the term's container marks the inner keys as
+    // opaque (see @container handling above).
     //
+    if (opaqueKeys)
+      continue;
+
     if (childP->type == KjObject)
       compactObject(childP, coreP, level + 1);
     else if (childP->type == KjArray)

@@ -165,8 +165,9 @@ SwldContext* swldContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* 
       //
       // Object mapping: "temperature": { "@id": "...", "@type": "..." }
       //
-      KjNode* idNodeP   = kjLookup(memberP, "@id");
-      KjNode* typeNodeP = kjLookup(memberP, "@type");
+      KjNode* idNodeP        = kjLookup(memberP, "@id");
+      KjNode* typeNodeP      = kjLookup(memberP, "@type");
+      KjNode* containerNodeP = kjLookup(memberP, "@container");
 
       if (idNodeP != NULL && idNodeP->type == KjString)
         itemP->id = kaStrdup(kaP, idNodeP->value.s);
@@ -175,6 +176,22 @@ SwldContext* swldContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* 
 
       if (typeNodeP != NULL && typeNodeP->type == KjString)
         itemP->type = kaStrdup(kaP, typeNodeP->value.s);
+
+      // Parse @container into the enum once here — checked on every term
+      // lookup during expand/compact, so strcmp would be wasteful.
+      // NGSI-LD ignores @graph if present (no graph semantics).
+      if (containerNodeP != NULL && containerNodeP->type == KjString)
+      {
+        const char* c = containerNodeP->value.s;
+        if      (strcmp(c, "@language") == 0)  itemP->container = SwldContainerLanguage;
+        else if (strcmp(c, "@index")    == 0)  itemP->container = SwldContainerIndex;
+        else if (strcmp(c, "@list")     == 0)  itemP->container = SwldContainerList;
+        else if (strcmp(c, "@set")      == 0)  itemP->container = SwldContainerSet;
+        else if (strcmp(c, "@type")     == 0)  itemP->container = SwldContainerType;
+        else if (strcmp(c, "@id")       == 0)  itemP->container = SwldContainerId;
+        else if (strcmp(c, "@graph")    == 0)  itemP->container = SwldContainerGraph;
+        else                                   itemP->container = SwldContainerOther;
+      }
     }
     else
     {
