@@ -42,6 +42,12 @@ typedef struct SwldContext
   struct SwldContext**        contextV;    // child contexts for arrays
   int                        contexts;    // count of child contexts
   bool                       isArray;     // true = array of child contexts
+  // ignored = true when URL matches a known NGSI-LD core context that is
+  // NOT the broker's configured core (e.g. v1.6 / v1.7 / v1.8 sent by a
+  // user payload while the broker runs its embedded v1.9). The body stays
+  // cached for echo via GET /jsonldContexts/{id}, but the mappings are
+  // skipped during expansion / compaction — the broker's own core wins.
+  bool                       ignored;
   double                     createdAt;
   double                     usedAt;
   struct SwldContext*         next;        // cache linked-list linkage

@@ -7,7 +7,7 @@
 //
 #include <stdbool.h>                                 // bool, true, false
 #include <stdlib.h>                                  // free
-#include <string.h>                                  // strlen
+#include <string.h>                                  // strlen, memset
 #include <unistd.h>                                  // usleep
 
 #include "kalloc/KAlloc.h"                           // KAlloc
@@ -22,8 +22,48 @@
 #include "swJsonld/SwldContextCache.h"               // SwldContextCache (for swldCacheGet()->kaP)
 #include "swJsonld/swldCache.h"                      // swldCacheLookup, swldCacheInsert
 #include "swJsonld/swldContextParse.h"               // swldContextFromObject, swldContextFromTree
-#include "swJsonld/swldInit.h"                       // SwldDownloadFunction
+#include "swJsonld/swldInit.h"                       // SwldDownloadFunction, SWLD_CORE_CONTEXT_URL
 #include "swJsonld/swldDownload.h"                   // Own interface
+
+
+
+// -----------------------------------------------------------------------------
+//
+// isOlderNgsildCoreUrl -
+//
+// True when `url` matches a known NGSI-LD core context URL that is NOT
+// the broker's configured core. Older core versions (v1.0–v1.8) are
+// recognised by URL prefix; the broker treats them as no-ops for
+// expansion while still caching the body for GET /jsonldContexts/{id}.
+//
+static bool isOlderNgsildCoreUrl(const char* url)
+{
+  if (url == NULL)
+    return false;
+
+  // The broker's configured core runs through the normal path (it gets
+  // coreContextRewriteToShort applied at swldInit time).
+  if (strcmp(url, SWLD_CORE_CONTEXT_URL) == 0)
+    return false;
+
+  // Canonical etsi.org core URLs:
+  //   https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context*.jsonld
+  static const char* kPrefix = "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context";
+  static const char* kSuffix = ".jsonld";
+
+  size_t prefixLen = strlen(kPrefix);
+  size_t suffixLen = strlen(kSuffix);
+  size_t urlLen    = strlen(url);
+
+  if (strncmp(url, kPrefix, prefixLen) != 0)
+    return false;
+  if (urlLen < prefixLen + suffixLen)
+    return false;
+  if (strcmp(url + urlLen - suffixLen, kSuffix) != 0)
+    return false;
+
+  return true;
+}
 
 
 
@@ -72,6 +112,29 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
 
   if (contextP != NULL)
     return contextP;
+
+  //
+  // Older NGSI-LD core context URL (v1.0–v1.8 / unversioned) — do NOT
+  // download. The broker runs its own embedded core; older variants
+  // would otherwise fight it for ownership of "value" / "object" / etc.
+  // and break the canonical short-form invariant. Insert a stub
+  // SwldContext flagged as `ignored`, with no body — `GET
+  // /jsonldContexts/{id}` will still find it (the URL is what
+  // identifies it), expansion / compaction skip it.
+  //
+  if (isOlderNgsildCoreUrl(url))
+  {
+    contextP        = (SwldContext*) kaAlloc(storeP, sizeof(SwldContext));
+    if (contextP == NULL)
+      return NULL;
+    memset(contextP, 0, sizeof(SwldContext));
+    contextP->url     = kaStrdup(storeP, url);
+    contextP->id      = contextP->url;
+    contextP->kind    = SwldKindImplicit;
+    contextP->ignored = true;
+    swldCacheInsert(contextP);
+    return contextP;
+  }
 
   //
   // Step 2: Check if another thread is downloading this URL

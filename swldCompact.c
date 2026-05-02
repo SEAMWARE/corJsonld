@@ -26,6 +26,9 @@ static SwldItem* contextReverseLookup(SwldContext* contextP, const char* iri)
   if (contextP == NULL)
     return NULL;
 
+  if (contextP->ignored == true)
+    return NULL;
+
   if (contextP->isArray == true)
   {
     for (int ix = contextP->contexts - 1; ix >= 0; ix--)
@@ -54,6 +57,9 @@ static SwldItem* contextReverseLookup(SwldContext* contextP, const char* iri)
 static const char* contextVocabCompact(SwldContext* contextP, const char* iri)
 {
   if (contextP == NULL)
+    return NULL;
+
+  if (contextP->ignored == true)
     return NULL;
 
   if (contextP->vocab != NULL)

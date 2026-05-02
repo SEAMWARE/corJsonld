@@ -65,6 +65,11 @@ SwldItem* contextItemLookup(SwldContext* contextP, const char* name)
   if (contextP == NULL)
     return NULL;
 
+  // Older NGSI-LD core (recognised in swldContextFromUrl) — broker's own
+  // core handles these terms.
+  if (contextP->ignored == true)
+    return NULL;
+
   if (contextP->isArray == true)
   {
     //
@@ -96,6 +101,9 @@ SwldItem* contextItemLookup(SwldContext* contextP, const char* name)
 static const char* contextVocab(SwldContext* contextP)
 {
   if (contextP == NULL)
+    return NULL;
+
+  if (contextP->ignored == true)
     return NULL;
 
   if (contextP->vocab != NULL)
