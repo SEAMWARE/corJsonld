@@ -8,6 +8,7 @@
 #include <stdbool.h>                                 // bool, true, false
 #include <string.h>                                  // strncmp, strchr, strlen
 
+#include "ktrace/kTrace.h"                            // KT_E
 #include "kalloc/kaAlloc.h"                          // kaAlloc
 #include "kalloc/kaStrdup.h"                         // kaStrdup
 #include "khash/khash.h"                             // khashItemLookup
@@ -219,32 +220,48 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
   }
 
   //
-  // Step 6: @vocab fallback
+  // Step 6: @vocab fallback. Per JSON-LD: every term that's not a JSON-LD
+  // keyword and not already an absolute IRI MUST be expanded. If no
+  // context defines the term explicitly, the active context's @vocab is
+  // used. NGSI-LD's invariant (and ours) is stronger: only the broker's
+  // configured core context carries @vocab — user contexts MUST NOT — so
+  // this branch is the unconditional final fallback for any short term
+  // no context defined explicitly. The core's @vocab string never
+  // changes once the broker is up, so cache it (and its length) on
+  // first call to avoid a contextVocab() walk + strlen() per expand.
   //
-  const char* vocab = contextVocab(contextP);
+  static const char* coreVocab    = NULL;
+  static int         coreVocabLen = 0;
 
-  if (vocab == NULL)
-    vocab = contextVocab(swldCoreContext());
-
-  if (vocab != NULL)
+  if (coreVocab == NULL)
   {
-    if (vocabExpandCheck != NULL && vocabExpandCheck(name) == false)
-      return NULL;
-
-    int vocabLen = strlen(vocab);
-    int nameLen  = strlen(name);
-    char* expanded = (char*) kaAlloc(kaP, vocabLen + nameLen + 1);
-
-    if (expanded != NULL)
+    coreVocab = contextVocab(swldCoreContext());
+    if (coreVocab == NULL)
     {
-      memcpy(expanded, vocab, vocabLen);
-      memcpy(expanded + vocabLen, name, nameLen + 1);
-      return expanded;
+      // Broker init bug — core context built without @vocab. Returning
+      // NULL surfaces the failure; silently passing the bare name through
+      // would corrupt downstream matchers (DB, sub cache, distops) that
+      // compare against fully-expanded IRIs.
+      KT_E("swldExpand: core context has no @vocab — broker init bug; cannot expand '%s'", name);
+      return NULL;
     }
+    coreVocabLen = (int) strlen(coreVocab);
   }
 
-  //
-  // Step 7: Return unchanged
-  //
-  return (char*) name;
+  // The vocab-expand check is a defence-in-depth filter for ill-formed
+  // names that should never reach this path; if it fires, return NULL
+  // (rather than the bare name) so the caller sees the failure instead
+  // of silently storing a non-IRI.
+  if (vocabExpandCheck != NULL && vocabExpandCheck(name) == false)
+    return NULL;
+
+  int   nameLen  = (int) strlen(name);
+  char* expanded = (char*) kaAlloc(kaP, coreVocabLen + nameLen + 1);
+
+  if (expanded == NULL)
+    return NULL;
+
+  memcpy(expanded, coreVocab, coreVocabLen);
+  memcpy(expanded + coreVocabLen, name, nameLen + 1);
+  return expanded;
 }
