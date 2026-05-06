@@ -144,23 +144,26 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
 // boundary sees a stray @context (it would otherwise flow into service
 // routines as if it were a user attribute — subtle stored-Property leak).
 //
-SwldContext* swldExpandTree(KjNode* treeP, KAlloc* kaP)
+SwldContext* swldExpandTree(KjNode* treeP, SwldContext* userContextP, KAlloc* kaP)
 {
   if (treeP == NULL)
     return NULL;
 
+  if (userContextP == NULL)
+    userContextP = swldCoreContext();
+
   if (treeP->type == KjObject)
   {
-    KjNode*      atContextP   = kjLookup(treeP, "@context");
-    SwldContext* userContextP = NULL;
+    KjNode*      atContextP = kjLookup(treeP, "@context");
+    SwldContext* bodyCtxP   = NULL;
 
     if (atContextP != NULL)
     {
-      userContextP = swldContextFromTree(atContextP, kaP);
+      bodyCtxP = swldContextFromTree(atContextP, kaP);
       kjChildRemove(treeP, atContextP);
     }
 
-    SwldContext* contextP = (userContextP != NULL) ? userContextP : swldCoreContext();
+    SwldContext* contextP = (bodyCtxP != NULL) ? bodyCtxP : userContextP;
     if (contextP == NULL)
       return NULL;
 
@@ -177,16 +180,16 @@ SwldContext* swldExpandTree(KjNode* treeP, KAlloc* kaP)
       if (itemP->type != KjObject)
         continue;
 
-      KjNode*      atContextP   = kjLookup(itemP, "@context");
-      SwldContext* elemContextP = NULL;
+      KjNode*      atContextP = kjLookup(itemP, "@context");
+      SwldContext* elemCtxP   = NULL;
 
       if (atContextP != NULL)
       {
-        elemContextP = swldContextFromTree(atContextP, kaP);
+        elemCtxP = swldContextFromTree(atContextP, kaP);
         kjChildRemove(itemP, atContextP);
       }
 
-      SwldContext* useCtx = (elemContextP != NULL) ? elemContextP : swldCoreContext();
+      SwldContext* useCtx = (elemCtxP != NULL) ? elemCtxP : userContextP;
       if (useCtx == NULL)
         continue;
 
@@ -196,7 +199,7 @@ SwldContext* swldExpandTree(KjNode* treeP, KAlloc* kaP)
         firstContextP = useCtx;
     }
 
-    return (firstContextP != NULL) ? firstContextP : swldCoreContext();
+    return (firstContextP != NULL) ? firstContextP : userContextP;
   }
 
   return NULL;
