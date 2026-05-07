@@ -46,23 +46,38 @@ static bool isOlderNgsildCoreUrl(const char* url)
   if (strcmp(url, SWLD_CORE_CONTEXT_URL) == 0)
     return false;
 
-  // Canonical etsi.org core URLs:
-  //   https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context*.jsonld
+  // Canonical etsi.org core URLs accepted as the older-core no-op:
+  //   https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context.jsonld         (unversioned)
+  //   https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context-v<X>.<Y>.jsonld
+  //
+  // The earlier `*` wildcard let `ngsi-ld-core-context-non-existing.jsonld`
+  // (used by ETSI 043_01 to verify LdContextNotAvailable) slip through and
+  // get cached as an empty no-op core, so the request silently succeeded
+  // instead of returning 504. Stricter check: require either a clean
+  // ".jsonld" right after the prefix, or "-v<digit>+.<digit>+.jsonld".
   static const char* kPrefix = "https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context";
-  static const char* kSuffix = ".jsonld";
-
   size_t prefixLen = strlen(kPrefix);
-  size_t suffixLen = strlen(kSuffix);
-  size_t urlLen    = strlen(url);
 
   if (strncmp(url, kPrefix, prefixLen) != 0)
     return false;
-  if (urlLen < prefixLen + suffixLen)
-    return false;
-  if (strcmp(url + urlLen - suffixLen, kSuffix) != 0)
-    return false;
 
-  return true;
+  const char* tail = url + prefixLen;
+  if (strcmp(tail, ".jsonld") == 0)
+    return true;
+
+  if (tail[0] != '-' || tail[1] != 'v')
+    return false;
+  tail += 2;
+  if (*tail < '0' || *tail > '9')
+    return false;
+  while (*tail >= '0' && *tail <= '9') tail++;
+  if (*tail != '.')
+    return false;
+  tail++;
+  if (*tail < '0' || *tail > '9')
+    return false;
+  while (*tail >= '0' && *tail <= '9') tail++;
+  return strcmp(tail, ".jsonld") == 0;
 }
 
 
