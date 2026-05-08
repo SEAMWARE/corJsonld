@@ -176,14 +176,38 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
   }
 
   //
-  // Step 4: NGSI-LD invariant — core wins. The conceptual chain is
-  // [user..., core]; the reverse-iterating walk starts at core, so a user
-  // context can never shadow a core term (id, type, entities, notification,
-  // ...). With coreContextRewriteToShort, core items return their short
-  // name as id, so this step naturally produces the short form for any
-  // core term.
+  // Step 4: Lookup in user context
   //
-  SwldItem* itemP = contextItemLookup(swldCoreContext(), name);
+  SwldItem* itemP = contextItemLookup(contextP, name);
+
+  if (itemP != NULL)
+  {
+    if (itemPP != NULL)
+      *itemPP = itemP;
+
+    //
+    // User context may include the core context — set the coreContext flag
+    // only when the user-context expansion *equals* the core-context one.
+    // A user context that REMAPS a core term (e.g. binds "scope" to a
+    // different IRI) must not be eligible for the keep-short shortcut.
+    //
+    if (coreContextP != NULL)
+    {
+      SwldItem* coreItemP = contextItemLookup(swldCoreContext(), name);
+      if (coreItemP != NULL && coreItemP->id != NULL && itemP->id != NULL &&
+          strcmp(coreItemP->id, itemP->id) == 0)
+      {
+        *coreContextP = true;
+      }
+    }
+
+    return itemP->id;
+  }
+
+  //
+  // Step 5: Lookup in core context
+  //
+  itemP = contextItemLookup(swldCoreContext(), name);
   if (itemP != NULL)
   {
     if (itemPP != NULL)
@@ -191,19 +215,6 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
 
     if (coreContextP != NULL)
       *coreContextP = true;
-
-    return itemP->id;
-  }
-
-  //
-  // Step 5: Lookup in the user context (reverse-iterated by
-  // contextItemLookup for arrays). Only reached when core has nothing.
-  //
-  itemP = contextItemLookup(contextP, name);
-  if (itemP != NULL)
-  {
-    if (itemPP != NULL)
-      *itemPP = itemP;
 
     return itemP->id;
   }
