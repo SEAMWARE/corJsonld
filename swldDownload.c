@@ -259,6 +259,12 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   //
   // Step 7: Cache the result
   //
+  // A context downloaded via URL is Cached (§ 5.13.1: "contexts that
+  // have been cached as a side effect of processing API operations").
+  // ImplicitlyCreated is reserved for inline-object @contexts the
+  // broker wraps and assigns its own URL — those flows set kind on
+  // their own.
+  //
   if (contextP != NULL)
   {
     if (contextP->url == NULL)
@@ -267,7 +273,7 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
     if (contextP->body == NULL)
       contextP->body = bodyCopy;
 
-    contextP->kind = SwldKindImplicit;
+    contextP->kind = SwldKindCached;
 
     swldCacheInsert(contextP);
   }
