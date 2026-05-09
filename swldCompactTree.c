@@ -48,7 +48,14 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
 
     // @container: "@language" / "@index" — value's keys are opaque (BCP-47
     // language tags or user-defined index strings). Never reverse-map them.
+    //
+    // Look up in the request context first (the ETSI test-suite context
+    // and other user contexts may override or define terms). Fall back
+    // to core, which carries the canonical NGSI-LD term metadata
+    // (@type, @container) that user contexts inherit by reference.
     SwldItem* termItemP = contextItemLookup(coreP, childP->name);
+    if (termItemP == NULL)
+      termItemP = contextItemLookup(swldCoreContext(), childP->name);
     bool opaqueKeys = (termItemP != NULL &&
                        (termItemP->container & SWLD_CONTAINER_OPAQUE_KEYS) != 0);
 
@@ -75,6 +82,34 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
 
             if (compactedValue != NULL)
               elemP->value.s = (char*) compactedValue;
+          }
+        }
+      }
+    }
+    //
+    // Mirror of the expansion-side @type:@vocab handling: terms whose
+    // values were vocab-expanded must be vocab-compacted on the way out
+    // so the wire shape uses the response @context's short forms.
+    // Examples: propertyNames, relationshipNames, watchedAttributes,
+    // attributeList, typeNames, objectType, vocab.
+    //
+    else if (termItemP != NULL &&
+             termItemP->type != NULL &&
+             strcmp(termItemP->type, "@vocab") == 0)
+    {
+      if (childP->type == KjString)
+      {
+        const char* cv = swldCompact(coreP, childP->value.s);
+        if (cv != NULL) childP->value.s = (char*) cv;
+      }
+      else if (childP->type == KjArray)
+      {
+        for (KjNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+        {
+          if (elemP->type == KjString)
+          {
+            const char* cv = swldCompact(coreP, elemP->value.s);
+            if (cv != NULL) elemP->value.s = (char*) cv;
           }
         }
       }

@@ -55,19 +55,48 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
 
     if (expanded != NULL && expanded[0] != '@')
     {
-      //
-      // NB: @type:@vocab / @type:@id value coercion is intentionally NOT
-      // performed here, even though several core-context terms declare it
-      // (propertyNames / relationshipNames / watchedAttributes / datasetId
-      // / object / etc.). Doing the coercion would silently launder
-      // sketchy user input — datasetId="not-a-uri" expanded via @vocab
-      // becomes a "valid" IRI under the default-context prefix, slipping
-      // past the URI validators that run AFTER expansion. Caches that
-      // need expanded values handle the expansion themselves at cache
-      // ingest time (see ldSubCache.c notifAttrsV / ldRegCache.c
-      // propertyNamesV-relationshipNamesV).
-      //
       childP->name = expanded;
+
+      //
+      // § 4.5.x / JSON-LD — when the term carries `@type: @vocab`, its
+      // string values are themselves vocab terms and must be expanded
+      // through the active @context. Core-context terms that need this:
+      // propertyNames, relationshipNames, watchedAttributes,
+      // attributeList, typeNames, objectType, vocab, etc. Without this,
+      // CSR.propertyNames=["name"] persists short while a query
+      // `?attrs=name` expands to the IRI form — match fails and the
+      // CSR isn't found.
+      //
+      // @type:@id is intentionally NOT coerced — those values are
+      // contracted to be IRIs already; @vocab-expanding a bare-name
+      // input would launder it into a syntactically-valid IRI past
+      // the URI validator (e.g. datasetId="not-a-uri").
+      //
+      if (termItemP != NULL &&
+          termItemP->type != NULL &&
+          strcmp(termItemP->type, "@vocab") == 0)
+      {
+        // Empty strings and other null-meaning values are NOT vocab terms
+        // — let the post-expansion shape validators see the original so
+        // they can reject. Without this guard the empty string gets
+        // prefixed by @vocab and silently passes URI-shape checks.
+        if (childP->type == KjString && childP->value.s != NULL && childP->value.s[0] != '\0')
+        {
+          char* ev = swldExpand(contextP, childP->value.s, kaP, NULL, NULL);
+          if (ev != NULL) childP->value.s = ev;
+        }
+        else if (childP->type == KjArray)
+        {
+          for (KjNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+          {
+            if (elemP->type == KjString && elemP->value.s != NULL && elemP->value.s[0] != '\0')
+            {
+              char* ev = swldExpand(contextP, elemP->value.s, kaP, NULL, NULL);
+              if (ev != NULL) elemP->value.s = ev;
+            }
+          }
+        }
+      }
     }
     else if (expanded != NULL && strcmp(expanded, "@type") == 0)
     {
