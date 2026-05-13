@@ -18,6 +18,10 @@
 
 
 
+static void compactArrayWalk(KjNode* arrayP, SwldContext* coreP, int level);
+
+
+
 // -----------------------------------------------------------------------------
 //
 // compactObject - recursively compact all names inside an object
@@ -116,7 +120,10 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
     }
 
     //
-    // Recurse into sub-objects and arrays of objects.
+    // Recurse into sub-objects and arrays. Arrays may themselves contain
+    // arrays (e.g. temporalValues for VocabProperty:
+    //   "vocabs": [ [ {"vocab": "..."}, "ts" ], ... ]), so the array walk
+    // dispatches on item kind rather than assuming each item is an Object.
     // Skip recursion when the term's container marks the inner keys as
     // opaque (see @container handling above).
     //
@@ -126,10 +133,29 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
     if (childP->type == KjObject)
       compactObject(childP, coreP, level + 1);
     else if (childP->type == KjArray)
-    {
-      for (KjNode* itemP = childP->value.firstChildP; itemP != NULL; itemP = itemP->next)
-        compactObject(itemP, coreP, level + 1);
-    }
+      compactArrayWalk(childP, coreP, level + 1);
+  }
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// compactArrayWalk - iterate an Array, recursing into both Object items
+// (compactObject) and Array items (further compactArrayWalk). Needed for
+// nested-array shapes like temporalValues' [[obj, ts], ...].
+//
+static void compactArrayWalk(KjNode* arrayP, SwldContext* coreP, int level)
+{
+  if (arrayP == NULL || arrayP->type != KjArray)
+    return;
+
+  for (KjNode* itemP = arrayP->value.firstChildP; itemP != NULL; itemP = itemP->next)
+  {
+    if (itemP->type == KjObject)
+      compactObject(itemP, coreP, level);
+    else if (itemP->type == KjArray)
+      compactArrayWalk(itemP, coreP, level + 1);
   }
 }
 
