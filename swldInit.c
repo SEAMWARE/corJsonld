@@ -11,6 +11,7 @@
 
 #include <pthread.h>                                 // pthread_mutex_init, pthread_mutex_destroy
 
+#include "ktrace/kTrace.h"                            // KT_E
 #include "kjson/KjNode.h"                            // KjNode
 #include "kjson/kjParse.h"                           // kjParse
 #include "kjson/kjLookup.h"                          // kjLookup
@@ -20,6 +21,7 @@
 #include "swJsonld/SwldItem.h"                       // SwldItem
 #include "swJsonld/SwldContext.h"                    // SwldContext
 #include "swJsonld/swldContextParse.h"               // swldContextFromObject
+#include "swJsonld/swldExpand.h"                     // contextVocab
 #include "swJsonld/SwldContextCache.h"               // SwldContextCache
 #include "swJsonld/swldCache.h"                      // swldCacheInsert
 #include "swJsonld/swldDownload.h"                   // swldContextFromUrl
@@ -202,18 +204,34 @@ int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downl
     swldCoreContextP = coreContextFromEmbedded(kaP);
     if (swldCoreContextP == NULL)
       return -1;
+  }
+  else
+  {
+    //
+    // Non-default URL: download from network
+    //
+    swldCoreContextP = swldContextFromUrl(coreContextUrl, kaP);
+    if (swldCoreContextP == NULL)
+      return -1;
 
-    return 0;
+    coreContextRewriteToShort(swldCoreContextP);
   }
 
   //
-  // Non-default URL: download from network
+  // The core context MUST declare @vocab — it's the unconditional fallback
+  // for any short term no context defined explicitly (JSON-LD § 4.1.2).
+  // Without it, swldExpand has no way to construct an IRI for unknown user
+  // terms and would silently leak them downstream, corrupting cache / DB /
+  // distop comparisons that all assume fully-expanded IRIs.
   //
-  swldCoreContextP = swldContextFromUrl(coreContextUrl, kaP);
-  if (swldCoreContextP == NULL)
+  // Refuse to start rather than discover this on the Nth request after
+  // some entity has already been persisted with bare names.
+  //
+  if (contextVocab(swldCoreContextP) == NULL)
+  {
+    KT_E("Core context has no @vocab member — broker cannot expand unknown user terms. Refusing to start.");
     return -1;
-
-  coreContextRewriteToShort(swldCoreContextP);
+  }
 
   return 0;
 }

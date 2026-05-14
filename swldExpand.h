@@ -50,4 +50,13 @@ extern SwldItem* contextItemLookup(SwldContext* contextP, const char* name);
 //
 extern bool swldAlreadyExpanded(const char* value);
 
+
+
+// -----------------------------------------------------------------------------
+//
+// contextVocab - return the active @vocab string for a context (handles
+// array-of-contexts recursion). NULL if not declared.
+//
+extern const char* contextVocab(SwldContext* contextP);
+
 #endif

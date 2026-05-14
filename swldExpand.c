@@ -99,7 +99,7 @@ SwldItem* contextItemLookup(SwldContext* contextP, const char* name)
 //
 // contextVocab - get @vocab value (handles arrays)
 //
-static const char* contextVocab(SwldContext* contextP)
+const char* contextVocab(SwldContext* contextP)
 {
   if (contextP == NULL)
     return NULL;
