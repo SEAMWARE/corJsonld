@@ -97,6 +97,41 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
           }
         }
       }
+      //
+      // Other @type:<datatype> bindings (xsd:dateTime, xsd:integer, …):
+      // delegate to the registered SwldValueCheck callback so the broker
+      // can reject ill-formed values at expansion time (§ 4.3 JSON-LD).
+      // @id values are deliberately NOT routed here — coercing a bare
+      // name to an IRI would launder it past downstream URI validators.
+      //
+      // JSON-LD @type only applies to DIRECT primitive value positions.
+      // NGSI-LD wraps attribute values in `{type, value, …}` objects, so
+      // an Object-typed child is not the position the binding talks
+      // about — the validation belongs to ldCheckAttribute downstream.
+      //
+      else if (termItemP != NULL &&
+               termItemP->type != NULL &&
+               strcmp(termItemP->type, "@id") != 0)
+      {
+        SwldValueCheck vc = swldGetValueCheck();
+        if (vc != NULL)
+        {
+          const char* shortName = (termItemP->name != NULL) ? termItemP->name : childP->name;
+          if (childP->type == KjArray)
+          {
+            for (KjNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+            {
+              if (elemP->type == KjObject || elemP->type == KjArray)
+                continue;
+              vc(shortName, termItemP->type, elemP);
+            }
+          }
+          else if (childP->type != KjObject)
+          {
+            vc(shortName, termItemP->type, childP);
+          }
+        }
+      }
     }
     else if (expanded != NULL && strcmp(expanded, "@type") == 0)
     {

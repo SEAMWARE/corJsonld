@@ -26,6 +26,17 @@
 // vocabExpandCheck - callback for name validation before @vocab expansion
 //
 static SwldVocabExpandCheck vocabExpandCheck = NULL;
+static SwldValueCheck       valueCheck       = NULL;
+
+void swldSetValueCheck(SwldValueCheck fn)
+{
+  valueCheck = fn;
+}
+
+SwldValueCheck swldGetValueCheck(void)
+{
+  return valueCheck;
+}
 
 void swldSetVocabExpandCheck(SwldVocabExpandCheck fn)
 {
