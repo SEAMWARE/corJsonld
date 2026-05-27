@@ -18,6 +18,45 @@
 
 // -----------------------------------------------------------------------------
 //
+// KjNode.flags bits (set by swldExpandTree, read by NGSI-LD code)
+//
+// These bits are classified ONCE on the core-context SwldItems (swldInit) and
+// copied verbatim onto each KjNode during expansion (swldExpandTree) — so the
+// broker decides structure with a bit test, never a strcmp chain.
+//
+// KJF_CORE_TERM - the term is defined by the core @context (any core term:
+//   id, type, entities, notification, value, observedAt, …). Such terms keep
+//   their short name (not expanded/compacted).
+//
+// KJF_ATTR_TERM - the term is a structural ATTRIBUTE member, i.e. NOT a
+//   sub-attribute: type, value, object, languageMap, vocab, valueList,
+//   objectList, json, observedAt, unitCode, datasetId, valueType. (Subset of
+//   core terms; entity/operation-level core terms like id/entities are NOT set.)
+//
+// KJF_VK_* - for the value-key members only, a 4-bit id (bits 4..7) telling
+//   WHICH value-key it is, so a Property can reject a foreign value-key
+//   (object/languageMap/…) with one comparison. 0 = not a value-key.
+//
+#define KJF_CORE_TERM   0x01
+#define KJF_ATTR_TERM   0x02
+
+#define KJF_VK_SHIFT    4
+#define KJF_VK_MASK     0xF0
+#define KJF_VK_ID(f)    (((f) & KJF_VK_MASK) >> KJF_VK_SHIFT)
+
+#define KJF_VK_NONE        0
+#define KJF_VK_VALUE       1
+#define KJF_VK_OBJECT      2
+#define KJF_VK_LANGUAGEMAP 3
+#define KJF_VK_VOCAB       4
+#define KJF_VK_VALUELIST   5
+#define KJF_VK_OBJECTLIST  6
+#define KJF_VK_JSON        7
+
+
+
+// -----------------------------------------------------------------------------
+//
 // SwldVocabExpandCheck - callback to validate a short-name before @vocab expansion
 //
 // Called with the original short-name. Returns true to allow, false to reject.

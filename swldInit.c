@@ -123,6 +123,79 @@ static void coreContextRewriteToShort(SwldContext* contextP)
 
 // -----------------------------------------------------------------------------
 //
+// coreTermFlags - the KJF_* bits for a core-context term, by short name
+//
+// Classified once (at core-context load) and copied onto every KjNode whose
+// term resolves to this item — so the broker tells structural members from
+// sub-attributes (and which value-key) with a bit test, never a strcmp chain.
+//
+static unsigned char coreTermFlags(const char* name)
+{
+  unsigned char flags = KJF_CORE_TERM;   // every core-context term
+
+  unsigned char vk = KJF_VK_NONE;
+  if      (strcmp(name, "value")       == 0)  vk = KJF_VK_VALUE;
+  else if (strcmp(name, "object")      == 0)  vk = KJF_VK_OBJECT;
+  else if (strcmp(name, "languageMap") == 0)  vk = KJF_VK_LANGUAGEMAP;
+  else if (strcmp(name, "vocab")       == 0)  vk = KJF_VK_VOCAB;
+  else if (strcmp(name, "valueList")   == 0)  vk = KJF_VK_VALUELIST;
+  else if (strcmp(name, "objectList")  == 0)  vk = KJF_VK_OBJECTLIST;
+  else if (strcmp(name, "json")        == 0)  vk = KJF_VK_JSON;
+
+  if (vk != KJF_VK_NONE)
+    flags |= KJF_ATTR_TERM | (vk << KJF_VK_SHIFT);
+
+  // Structural attribute members that are not value-keys
+  if ((strcmp(name, "type")       == 0) ||
+      (strcmp(name, "observedAt") == 0) ||
+      (strcmp(name, "expiresAt")  == 0) ||
+      (strcmp(name, "unitCode")   == 0) ||
+      (strcmp(name, "datasetId")  == 0) ||
+      (strcmp(name, "valueType")  == 0))
+    flags |= KJF_ATTR_TERM;
+
+  return flags;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// coreContextClassifyFlags - set SwldItem.flags on every core-context item
+//
+static void coreContextClassifyFlags(SwldContext* contextP)
+{
+  if (contextP == NULL)
+    return;
+
+  if (contextP->isArray == true)
+  {
+    for (int ix = 0; ix < contextP->contexts; ix++)
+      coreContextClassifyFlags(contextP->contextV[ix]);
+    return;
+  }
+
+  if (contextP->nameHT == NULL)
+    return;
+
+  for (int slot = 0; slot < contextP->nameHT->arraySize; slot++)
+  {
+    for (KHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
+    {
+      SwldItem* itemP = (SwldItem*) lP->data;
+
+      if (itemP == NULL || itemP->name == NULL)
+        continue;
+
+      itemP->flags = coreTermFlags(itemP->name);
+    }
+  }
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // coreContextFromEmbedded - parse the compiled-in core context body
 //
 static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
@@ -163,6 +236,7 @@ static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
     // expander returns short forms for core terms with zero per-call work.
     //
     coreContextRewriteToShort(contextP);
+    coreContextClassifyFlags(contextP);
 
     //
     // Preserve the compiled-in body for GET /jsonldContexts/{id}.
@@ -215,6 +289,7 @@ int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downl
       return -1;
 
     coreContextRewriteToShort(swldCoreContextP);
+    coreContextClassifyFlags(swldCoreContextP);
   }
 
   //

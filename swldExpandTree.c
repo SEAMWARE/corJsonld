@@ -47,6 +47,15 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
     SwldItem* termItemP = NULL;
     char* expanded = swldExpand(contextP, childP->name, kaP, &termItemP, &coreContext);
 
+    // Copy the term's classification bits (KJF_*) from the matched context item
+    // onto the node, so the broker tells structural members from sub-attributes
+    // (and which value-key) with a bit test rather than a strcmp chain. Core
+    // terms reached via prefix-expansion carry no item — flag them core-term.
+    if (termItemP != NULL)
+      childP->flags |= termItemP->flags;
+    else if (coreContext)
+      childP->flags |= KJF_CORE_TERM;
+
     // @container: "@language" / "@index" — the value's keys are opaque
     // (BCP-47 language tags or user-defined index strings), NOT terms.
     // Don't recurse into those subtrees with the term-expander.
@@ -136,7 +145,9 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
     else if (expanded != NULL && strcmp(expanded, "@type") == 0)
     {
       //
-      // "type" maps to "@type" - don't rename the key, but expand the string value
+      // "type" maps to "@type" - don't rename the key, but expand the string value.
+      // (Its KJF_* bits are already copied from the context item above — "type"
+      // is a normal core item ("type":"@type") like any other @type alias.)
       //
       if (childP->type == KjString)
       {

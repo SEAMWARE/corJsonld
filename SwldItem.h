@@ -54,6 +54,9 @@ typedef struct SwldItem
   SwldContainer  container;  // parsed @container; SwldContainerNone if absent.
                              // For Language / Index, the term's value-object
                              // keys are opaque and must not be expanded as terms.
+  unsigned char  flags;      // KJF_* bits (swldExpand.h), classified once when the
+                             // core context is loaded and copied onto each KjNode
+                             // during expansion — so downstream is a bit test, not strcmp.
 } SwldItem;
 
 #endif
