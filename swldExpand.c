@@ -53,6 +53,8 @@ bool swldAlreadyExpanded(const char* value)
 {
   if (value == NULL)
     return false;
+  if (value[0] == '@')                                 // JSON-LD keyword (@id, @type, @vocab, ...)
+    return true;
   if (strncmp(value, "urn:", 4) == 0)
     return true;
   if (strncmp(value, "http://", 7) == 0)
