@@ -55,4 +55,24 @@ extern void swldCleanup(void);
 //
 extern SwldContext* swldCoreContext(void);
 
+
+
+// -----------------------------------------------------------------------------
+//
+// SwldCorePrefix / swldCorePrefixes -
+//
+// Snapshot of the core context's prefix-shaped terms (id ends with /, #,
+// or :), captured at init BEFORE coreContextRewriteToShort flattens id
+// to name. Used by swldCompact's compact-IRI step to emit forms like
+// `ngsi-ld:default-context/almostFull` when @vocab strip would be
+// ambiguous.
+//
+typedef struct SwldCorePrefix {
+  const char* name;
+  const char* id;
+  int         idLen;
+} SwldCorePrefix;
+
+extern const SwldCorePrefix* swldCorePrefixes(int* countP);
+
 #endif

@@ -37,6 +37,79 @@
 static SwldContextCache      swldGlobalCache;
 static SwldContext*          swldCoreContextP     = NULL;
 static bool                  swldInitialized      = false;
+
+// -----------------------------------------------------------------------------
+//
+// Core-context prefix snapshot — { name, id } pairs captured pre-rewrite
+//
+// coreContextRewriteToShort flattens every core term's id to its short
+// name (for the hot expand/compact path). That destroys the only place
+// the broker can read prefix-shaped IRIs like `ngsi-ld → https://uri.etsi.org/ngsi-ld/`,
+// which compact-IRI emission needs (e.g. to render
+// `ngsi-ld:default-context/almostFull` when @vocab strip would be
+// ambiguous). We grab the snapshot pre-rewrite once at init and serve
+// it via swldCorePrefixes() for prefixCompact's longest-match scan.
+//
+typedef struct SwldCorePrefix {
+  const char* name;   // e.g. "ngsi-ld"
+  const char* id;     // e.g. "https://uri.etsi.org/ngsi-ld/"
+  int         idLen;
+} SwldCorePrefix;
+
+static SwldCorePrefix  corePrefixV[16];   // tiny set in practice (NGSI-LD core has 2: ngsi-ld + geojson)
+static int             corePrefixN = 0;
+
+// Public accessor (declared in swldInit.h).
+const SwldCorePrefix* swldCorePrefixes(int* countP)
+{
+  if (countP != NULL) *countP = corePrefixN;
+  return corePrefixV;
+}
+
+// Snapshot prefix-shaped core terms before the rewrite. Prefix shape: id
+// ends with '/', '#', or ':'. Recurses for isArray, dedup by name.
+static void coreContextPrefixSnapshot(SwldContext* contextP)
+{
+  if (contextP == NULL || contextP->ignored == true)
+    return;
+
+  if (contextP->isArray == true)
+  {
+    for (int ix = 0; ix < contextP->contexts; ix++)
+      coreContextPrefixSnapshot(contextP->contextV[ix]);
+    return;
+  }
+
+  if (contextP->nameHT == NULL)
+    return;
+
+  for (int slot = 0; slot < contextP->nameHT->arraySize; slot++)
+  {
+    for (KHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
+    {
+      SwldItem* itP = (SwldItem*) lP->data;
+      if (itP == NULL || itP->name == NULL || itP->id == NULL) continue;
+      if (itP->name[0] == '@') continue;
+
+      int idLen = (int) strlen(itP->id);
+      if (idLen < 1) continue;
+      char last = itP->id[idLen - 1];
+      if (last != '/' && last != '#' && last != ':') continue;
+
+      // Dedup by name (compound contexts can re-introduce the same prefix)
+      bool dup = false;
+      for (int i = 0; i < corePrefixN; i++)
+        if (strcmp(corePrefixV[i].name, itP->name) == 0) { dup = true; break; }
+      if (dup) continue;
+
+      if (corePrefixN >= (int)(sizeof(corePrefixV)/sizeof(corePrefixV[0]))) return;
+      corePrefixV[corePrefixN].name  = itP->name;
+      corePrefixV[corePrefixN].id    = itP->id;
+      corePrefixV[corePrefixN].idLen = idLen;
+      corePrefixN++;
+    }
+  }
+}
 static SwldDownloadFunction  swldDownloadFn       = NULL;
 
 
@@ -232,6 +305,14 @@ static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
   if (contextP != NULL)
   {
     //
+    // Snapshot prefix-shaped terms (e.g. ngsi-ld → https://uri.etsi.org/ngsi-ld/)
+    // BEFORE the rewrite — the rewrite flattens id to name and the prefix
+    // URL is gone after. swldCorePrefixes() serves the snapshot for
+    // compact-IRI emission in swldCompact step 5.
+    //
+    coreContextPrefixSnapshot(contextP);
+
+    //
     // Core-context shortcut: rewrite each item's id to its name so the
     // expander returns short forms for core terms with zero per-call work.
     //
@@ -288,6 +369,7 @@ int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downl
     if (swldCoreContextP == NULL)
       return -1;
 
+    coreContextPrefixSnapshot(swldCoreContextP);
     coreContextRewriteToShort(swldCoreContextP);
     coreContextClassifyFlags(swldCoreContextP);
   }
