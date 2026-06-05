@@ -19,4 +19,15 @@
 //
 extern SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP);
 
+
+
+// -----------------------------------------------------------------------------
+//
+// swldIsCoreContextUrl - true if `url` names the NGSI-LD core context:
+// the configured core, the canonical unversioned form, or any older
+// versioned form (the ignored-stub family). The admin API treats all of
+// them as THE core entry.
+//
+extern bool swldIsCoreContextUrl(const char* url);
+
 #endif

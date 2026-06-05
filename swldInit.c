@@ -324,6 +324,11 @@ static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
     // swldCoreContextBody lives for the process lifetime, so we point at
     // it directly rather than duplicating.
     //
+    // Kind stays "ImplicitlyCreated": "Cached" would drag the core into
+    // ?kind=Cached list filters and § 13.4.4's serve-content 422 for
+    // Cached entries — all blast radius, no conformance gain (the suite
+    // never asserts the core's kind).
+    //
     contextP->body = (char*) swldCoreContextBody;
     contextP->kind = SwldKindImplicit;
     swldCacheInsert(contextP);

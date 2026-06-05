@@ -84,6 +84,27 @@ static bool isOlderNgsildCoreUrl(const char* url)
 
 // -----------------------------------------------------------------------------
 //
+// swldIsCoreContextUrl - see header.
+//
+bool swldIsCoreContextUrl(const char* url)
+{
+  if (url == NULL)
+    return false;
+
+  SwldContext* coreP = swldCoreContext();
+  if (coreP != NULL && coreP->url != NULL && strcmp(url, coreP->url) == 0)
+    return true;
+
+  if (strcmp(url, SWLD_CORE_CONTEXT_URL) == 0)
+    return true;
+
+  return isOlderNgsildCoreUrl(url);
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // swldDownloadGet - defined in swldInit.c
 //
 extern SwldDownloadFunction swldDownloadGet(void);
