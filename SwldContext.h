@@ -48,6 +48,13 @@ typedef struct SwldContext
   // cached for echo via GET /jsonldContexts/{id}, but the mappings are
   // skipped during expansion / compaction — the broker's own core wins.
   bool                       ignored;
+  // volatileCtx = true for a broker-minted one-shot context hosted only so
+  // a Link header (response or distop forward) can reference an inline /
+  // multi-element user @context by URL. Never persisted to the DB; served
+  // with Cache-Control: no-store and dropped after the first GET; reaped
+  // at expiresAt if never fetched. Skipped by GET /jsonldContexts list.
+  bool                       volatileCtx;
+  double                     expiresAt;   // volatile reap deadline (epoch s); 0 = never
   double                     createdAt;
   double                     usedAt;
   struct SwldContext*         next;        // cache linked-list linkage

@@ -41,6 +41,14 @@ extern SwldContext* swldCacheRemove(const char* idOrUrl);
 
 // -----------------------------------------------------------------------------
 //
+// swldCacheReapVolatile - drop volatile contexts past expiresAt (returns count).
+//
+extern int swldCacheReapVolatile(double now);
+
+
+
+// -----------------------------------------------------------------------------
+//
 // swldCacheSnapshot - thread-safe snapshot of current cache entries.
 //
 // Allocates an array of (SwldContext*) pointers in allocP, in cache insertion

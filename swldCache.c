@@ -191,6 +191,54 @@ SwldContext* swldCacheRemove(const char* idOrUrl)
 
 // -----------------------------------------------------------------------------
 //
+// swldCacheReapVolatile - drop volatile contexts whose expiresAt has passed.
+//
+// Volatile contexts (broker-minted, one-shot Link targets) are normally
+// removed on their first GET. This is the backstop for the ones nobody ever
+// fetched: walk the list under the lock and unlink any volatile entry past
+// its deadline. Like swldCacheRemove, no per-object free (cache allocator).
+// Returns the number reaped.
+//
+int swldCacheReapVolatile(double now)
+{
+  SwldContextCache* cacheP = swldCacheGet();
+  int               reaped = 0;
+
+  pthread_mutex_lock(&cacheP->mutex);
+
+  SwldContext* prevP = NULL;
+  SwldContext* p     = cacheP->first;
+
+  while (p != NULL)
+  {
+    if (p->volatileCtx && p->expiresAt != 0 && p->expiresAt <= now)
+    {
+      SwldContext* deadP = p;
+
+      if (prevP != NULL)
+        prevP->next = p->next;
+      else
+        cacheP->first = p->next;
+
+      cacheP->count -= 1;
+      p = p->next;
+      deadP->next = NULL;
+      reaped++;
+      continue;
+    }
+
+    prevP = p;
+    p     = p->next;
+  }
+
+  pthread_mutex_unlock(&cacheP->mutex);
+  return reaped;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // swldCacheSnapshot -
 //
 void swldCacheSnapshot(KAlloc* allocP, SwldContext*** arrPP, int* nP)
