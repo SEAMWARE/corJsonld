@@ -59,8 +59,16 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
     // @container: "@language" / "@index" — the value's keys are opaque
     // (BCP-47 language tags or user-defined index strings), NOT terms.
     // Don't recurse into those subtrees with the term-expander.
+    //
+    // Same for the VALUE-position core terms (value / json / valueList):
+    // a Property's value is plain JSON — its member names are NOT
+    // vocabulary terms and q's "[...]" addresses them verbatim
+    // (§ 4.5.2 / § 4.9). Expanding them rewrote {"c":{"d":7}} into
+    // default-context IRized keys, unreachable by q=attr[c.d].
+    int  vk         = (termItemP != NULL) ? KJF_VK_ID(termItemP->flags) : KJF_VK_NONE;
     bool opaqueKeys = (termItemP != NULL &&
-                       (termItemP->container & SWLD_CONTAINER_OPAQUE_KEYS) != 0);
+                       ((termItemP->container & SWLD_CONTAINER_OPAQUE_KEYS) != 0 ||
+                        vk == KJF_VK_VALUE || vk == KJF_VK_JSON || vk == KJF_VK_VALUELIST));
 
     if (expanded != NULL && expanded[0] != '@')
     {
