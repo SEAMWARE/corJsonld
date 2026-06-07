@@ -38,6 +38,12 @@ static SwldContextCache      swldGlobalCache;
 static SwldContext*          swldCoreContextP     = NULL;
 static bool                  swldInitialized      = false;
 
+// Core @vocab — the core context ALWAYS carries @vocab (swldInit refuses
+// to start without one); cached here with its length so the expand hot
+// path uses it directly, no per-call context walk.
+const char* swldCoreVocab    = NULL;
+int         swldCoreVocabLen = 0;
+
 // -----------------------------------------------------------------------------
 //
 // Core-context prefix snapshot — { name, id } pairs captured pre-rewrite
@@ -389,11 +395,13 @@ int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downl
   // Refuse to start rather than discover this on the Nth request after
   // some entity has already been persisted with bare names.
   //
-  if (contextVocab(swldCoreContextP) == NULL)
+  swldCoreVocab = contextVocab(swldCoreContextP);
+  if (swldCoreVocab == NULL)
   {
     KT_E("Core context has no @vocab member — broker cannot expand unknown user terms. Refusing to start.");
     return -1;
   }
+  swldCoreVocabLen = (int) strlen(swldCoreVocab);
 
   return 0;
 }
@@ -414,4 +422,6 @@ void swldCleanup(void)
   swldCoreContextP = NULL;
   swldDownloadFn   = NULL;
   swldInitialized  = false;
+  swldCoreVocab    = NULL;
+  swldCoreVocabLen = 0;
 }

@@ -8,7 +8,6 @@
 #include <stdbool.h>                                 // bool, true, false
 #include <string.h>                                  // strncmp, strchr, strlen
 
-#include "ktrace/kTrace.h"                            // KT_E
 #include "kalloc/kaAlloc.h"                          // kaAlloc
 #include "kalloc/kaStrdup.h"                         // kaStrdup
 #include "khash/khash.h"                             // khashItemLookup
@@ -228,27 +227,10 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
   // used. NGSI-LD's invariant (and ours) is stronger: only the broker's
   // configured core context carries @vocab — user contexts MUST NOT — so
   // this branch is the unconditional final fallback for any short term
-  // no context defined explicitly. The core's @vocab string never
-  // changes once the broker is up, so cache it (and its length) on
-  // first call to avoid a contextVocab() walk + strlen() per expand.
+  // no context defined explicitly. swldCoreVocab is set once at init
+  // (the broker refuses to start without it), so it's read directly
+  // here — no per-call context walk.
   //
-  static const char* coreVocab    = NULL;
-  static int         coreVocabLen = 0;
-
-  if (coreVocab == NULL)
-  {
-    coreVocab = contextVocab(swldCoreContext());
-    if (coreVocab == NULL)
-    {
-      // Broker init bug — core context built without @vocab. Returning
-      // NULL surfaces the failure; silently passing the bare name through
-      // would corrupt downstream matchers (DB, sub cache, distops) that
-      // compare against fully-expanded IRIs.
-      KT_E("swldExpand: core context has no @vocab — broker init bug; cannot expand '%s'", name);
-      return NULL;
-    }
-    coreVocabLen = (int) strlen(coreVocab);
-  }
 
   // The vocab-expand check is a defence-in-depth filter for ill-formed
   // names that should never reach this path; if it fires, return NULL
@@ -258,12 +240,12 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
     return NULL;
 
   int   nameLen  = (int) strlen(name);
-  char* expanded = (char*) kaAlloc(kaP, coreVocabLen + nameLen + 1);
+  char* expanded = (char*) kaAlloc(kaP, swldCoreVocabLen + nameLen + 1);
 
   if (expanded == NULL)
     return NULL;
 
-  memcpy(expanded, coreVocab, coreVocabLen);
-  memcpy(expanded + coreVocabLen, name, nameLen + 1);
+  memcpy(expanded, swldCoreVocab, swldCoreVocabLen);
+  memcpy(expanded + swldCoreVocabLen, name, nameLen + 1);
   return expanded;
 }

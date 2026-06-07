@@ -59,6 +59,19 @@ extern SwldContext* swldCoreContext(void);
 
 // -----------------------------------------------------------------------------
 //
+// swldCoreVocab / swldCoreVocabLen -
+//
+// The core context's @vocab (the default context URI) and its length.
+// Set once by swldInit — the core context ALWAYS carries @vocab; init
+// fails otherwise — so the expand hot path reads these directly.
+//
+extern const char* swldCoreVocab;
+extern int         swldCoreVocabLen;
+
+
+
+// -----------------------------------------------------------------------------
+//
 // SwldCorePrefix / swldCorePrefixes -
 //
 // Snapshot of the core context's prefix-shaped terms (id ends with /, #,

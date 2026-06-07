@@ -298,21 +298,17 @@ const char* swldCompact(SwldContext* contextP, const char* iri)
     return itemP->name;
 
   //
-  // Step 4: @vocab stripping — user context first, then core. Guarded:
-  // record whether the strip was BLOCKED by a shadowing user term (vs.
-  // just not applicable), so step 5 below only fires for shadowed cases.
+  // Step 4: @vocab stripping — CORE ONLY. @vocab is core-context-only on
+  // expansion (a user-context @vocab is ignored), so stripping a user
+  // @vocab here would emit a short name that does NOT expand back to the
+  // same IRI — a round-trip corruption. Guarded: record whether the strip
+  // was BLOCKED by a shadowing user term (vs. just not applicable), so
+  // step 5 below only fires for shadowed cases.
   //
   bool shadowed = false;
-  const char* result = vocabStripGuarded(contextP, contextP, iri, &shadowed);
+  const char* result = vocabStripGuarded(contextP, coreP, iri, &shadowed);
   if (result != NULL)
     return result;
-
-  if (!shadowed)
-  {
-    result = vocabStripGuarded(contextP, coreP, iri, &shadowed);
-    if (result != NULL)
-      return result;
-  }
 
   //
   // Step 5: Compact-IRI prefix match — ONLY when step 4 was blocked by
