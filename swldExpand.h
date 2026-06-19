@@ -124,4 +124,16 @@ extern bool swldAlreadyExpanded(const char* value);
 //
 extern const char* contextVocab(SwldContext* contextP);
 
+
+
+// -----------------------------------------------------------------------------
+//
+// swldValueObjectIs    - true if obj is a JSON-LD value object (has @value/@type)
+// swldValueObjectCheck - validate a value object's structure (@value required,
+//                        @type optional + string, no other members). Structure
+//                        only; *detailP gets a static reason string on failure.
+//
+extern bool swldValueObjectIs(KjNode* objP);
+extern bool swldValueObjectCheck(KjNode* objP, char** detailP);
+
 #endif

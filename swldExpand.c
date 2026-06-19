@@ -11,6 +11,7 @@
 #include "kalloc/kaAlloc.h"                          // kaAlloc
 #include "kalloc/kaStrdup.h"                         // kaStrdup
 #include "khash/khash.h"                             // khashItemLookup
+#include "kjson/KjNode.h"                            // KjNode
 #include "swJsonld/SwldItem.h"                       // SwldItem
 #include "swJsonld/SwldContext.h"                     // SwldContext
 #include "swJsonld/swldTraceLevels.h"                // SwldTExpand
@@ -248,4 +249,73 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
   memcpy(expanded, swldCoreVocab, swldCoreVocabLen);
   memcpy(expanded + swldCoreVocabLen, name, nameLen + 1);
   return expanded;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// swldValueObjectIs - true if obj is a JSON-LD value object (has @value or @type)
+//
+bool swldValueObjectIs(KjNode* objP)
+{
+  if ((objP == NULL) || (objP->type != KjObject))
+    return false;
+
+  for (KjNode* childP = objP->value.firstChildP; childP != NULL; childP = childP->next)
+  {
+    if (childP->name == NULL)
+      continue;
+    if ((strcmp(childP->name, "@value") == 0) || (strcmp(childP->name, "@type") == 0))
+      return true;
+  }
+
+  return false;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// swldValueObjectCheck - validate the structure of a JSON-LD value object
+//
+// The caller has established that objP IS a value object (swldValueObjectIs).
+// A value object accepts only `@value` (required) and `@type` (optional, a
+// string). Any other member — plain or @-prefixed — is invalid. This is the
+// JSON-LD-level structural rule; datatype/lexical validation of the `@value`
+// against its `@type` is the application's concern (NGSI-LD, downstream).
+// Duplicate `@value`/`@type` are already rejected upstream by the
+// duplicate-member check, so they are not re-counted here.
+//
+// On violation returns false and points *detailP at a static reason string.
+//
+bool swldValueObjectCheck(KjNode* objP, char** detailP)
+{
+  KjNode* atValueP = NULL;
+  KjNode* atTypeP  = NULL;
+
+  for (KjNode* childP = objP->value.firstChildP; childP != NULL; childP = childP->next)
+  {
+    if      ((childP->name != NULL) && (strcmp(childP->name, "@value") == 0))  atValueP = childP;
+    else if ((childP->name != NULL) && (strcmp(childP->name, "@type")  == 0))  atTypeP  = childP;
+    else
+    {
+      *detailP = (char*) "a JSON-LD value object accepts only '@value' and '@type'";
+      return false;
+    }
+  }
+
+  if (atValueP == NULL)
+  {
+    *detailP = (char*) "a JSON-LD value object must have '@value'";
+    return false;
+  }
+
+  if ((atTypeP != NULL) && (atTypeP->type != KjString))
+  {
+    *detailP = (char*) "the '@type' of a JSON-LD value object must be a string";
+    return false;
+  }
+
+  return true;
 }
