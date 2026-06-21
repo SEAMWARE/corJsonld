@@ -224,13 +224,18 @@ static unsigned char coreTermFlags(const char* name)
   if (vk != KJF_VK_NONE)
     flags |= KJF_ATTR_TERM | (vk << KJF_VK_SHIFT);
 
-  // Structural attribute members that are not value-keys
+  // Structural attribute members that are not value-keys. valueType and
+  // objectType are @vocab-coerced (their value is a type term, not a
+  // sub-Property) — without KJF_ATTR_TERM they would be wrongly reified as
+  // a { "type":"Property", "value":... } sub-attribute on input-normalize.
+  // (Classification runs once at core-context load, not per request.)
   if ((strcmp(name, "type")       == 0) ||
       (strcmp(name, "observedAt") == 0) ||
       (strcmp(name, "expiresAt")  == 0) ||
       (strcmp(name, "unitCode")   == 0) ||
       (strcmp(name, "datasetId")  == 0) ||
-      (strcmp(name, "valueType")  == 0))
+      (strcmp(name, "valueType")  == 0) ||
+      (strcmp(name, "objectType") == 0))
     flags |= KJF_ATTR_TERM;
 
   return flags;
