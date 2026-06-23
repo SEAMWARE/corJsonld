@@ -6,7 +6,7 @@
 // Copyright 2026 Seamware
 //
 #include <stdbool.h>                                 // bool, true, false
-#include <string.h>                                  // strcmp
+#include <string.h>                                  // strcmp, strncmp
 #include <time.h>                                    // time
 
 #include "kalloc/KAlloc.h"                            // KAlloc, kaAlloc
@@ -28,6 +28,42 @@ extern SwldContextCache* swldCacheGet(void);
 
 // -----------------------------------------------------------------------------
 //
+// schemeSkip - skip a leading http:// or https:// scheme
+//
+static const char* schemeSkip(const char* s)
+{
+  if      (strncmp(s, "https://", 8) == 0)  return &s[8];
+  else if (strncmp(s, "http://",  7) == 0)  return &s[7];
+
+  return s;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// idMatch - protocol-agnostic identifier comparison
+//
+// A JSON-LD @context referenced as http://host/x and as https://host/x is the
+// SAME context; the cache keys it without regard to the scheme so only ONE copy
+// is ever stored (the first-seen URL wins). Non-URL identifiers (broker-assigned
+// Hosted ids, urn:...) carry no http(s) scheme and so compare verbatim.
+//
+static bool idMatch(const char* a, const char* b)
+{
+  if ((a == NULL) || (b == NULL))
+    return false;
+
+  if (strcmp(a, b) == 0)
+    return true;
+
+  return (strcmp(schemeSkip(a), schemeSkip(b)) == 0);
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // swldCacheLookup - lookup by identifier.
 //
 // For Implicit / Cached contexts the id equals the URL. For Hosted contexts
@@ -43,8 +79,7 @@ SwldContext* swldCacheLookup(const char* idOrUrl)
 
   while (contextP != NULL)
   {
-    if (((contextP->id  != NULL) && (strcmp(contextP->id,  idOrUrl) == 0)) ||
-        ((contextP->url != NULL) && (strcmp(contextP->url, idOrUrl) == 0)))
+    if (idMatch(contextP->id, idOrUrl) || idMatch(contextP->url, idOrUrl))
     {
       contextP->usedAt = (double) time(NULL);
       pthread_mutex_unlock(&cacheP->mutex);
@@ -86,8 +121,7 @@ void swldCacheInsert(SwldContext* contextP)
 
   while (existingP != NULL)
   {
-    if (((existingP->id  != NULL) && (strcmp(existingP->id,  key) == 0)) ||
-        ((existingP->url != NULL) && (strcmp(existingP->url, key) == 0)))
+    if (idMatch(existingP->id, key) || idMatch(existingP->url, key))
     {
       pthread_mutex_unlock(&cacheP->mutex);
       return;
@@ -164,8 +198,7 @@ SwldContext* swldCacheRemove(const char* idOrUrl)
 
   while (p != NULL)
   {
-    if (((p->id  != NULL) && (strcmp(p->id,  idOrUrl) == 0)) ||
-        ((p->url != NULL) && (strcmp(p->url, idOrUrl) == 0)))
+    if (idMatch(p->id, idOrUrl) || idMatch(p->url, idOrUrl))
     {
       if (prevP != NULL)
         prevP->next = p->next;
