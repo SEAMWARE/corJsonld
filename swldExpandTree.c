@@ -75,6 +75,69 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
       childP->name = expanded;
 
       //
+      // A non-reified value-object — {"@type":X,"@value":Y} — carries a typed
+      // literal directly (the shape a registration's "free" / non-spec
+      // properties take after expansion). The term-binding branches below act
+      // only on DIRECT primitive values, so an explicit value-object would
+      // otherwise skip both @value validation and @vocab expansion. Validate Y
+      // against its OWN @type via the same SwldValueCheck callback the primitive
+      // path uses (mapping the NGSI-LD `DateTime` type onto xsd:dateTime so the
+      // existing per-type checks apply), and @vocab-expand Y — KEEPING the
+      // object node verbatim so a GET round-trips the submitted representation.
+      //
+      // Skip value-position members (a Property's value / json / valueList):
+      // a value-object there is an attribute value, validated downstream by
+      // ldCheckAttribute — not a free property of the enclosing resource.
+      //
+      if (opaqueKeys == false && childP->type == KjObject)
+      {
+        KjNode* atValueP = kjLookup(childP, "@value");
+
+        if (atValueP != NULL)
+        {
+          KjNode*     atTypeP = kjLookup(childP, "@type");
+          const char* voType  = (atTypeP != NULL && atTypeP->type == KjString) ? atTypeP->value.s : NULL;
+
+          if (voType != NULL && strcmp(voType, "@vocab") == 0)
+          {
+            // @vocab — the @value is itself a vocab term (or array of them).
+            if (atValueP->type == KjString && atValueP->value.s != NULL && atValueP->value.s[0] != '\0')
+            {
+              char* ev = swldExpand(contextP, atValueP->value.s, kaP, NULL, NULL);
+              if (ev != NULL) atValueP->value.s = ev;
+            }
+            else if (atValueP->type == KjArray)
+            {
+              for (KjNode* elemP = atValueP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+                if (elemP->type == KjString && elemP->value.s != NULL && elemP->value.s[0] != '\0')
+                {
+                  char* ev = swldExpand(contextP, elemP->value.s, kaP, NULL, NULL);
+                  if (ev != NULL) elemP->value.s = ev;
+                }
+            }
+          }
+          else if (voType != NULL && atValueP->type != KjObject && atValueP->type != KjArray)
+          {
+            SwldValueCheck vc = swldGetValueCheck();
+            if (vc != NULL)
+            {
+              const char* shortName = (termItemP != NULL && termItemP->name != NULL) ? termItemP->name : childP->name;
+              const char* dt        = voType;
+
+              // NGSI-LD `DateTime` is the core temporal type (the core context
+              // maps it to ngsi-ld:DateTime); route it through the xsd:dateTime
+              // check so a free DateTime property is validated like any other.
+              if ((strcmp(voType, "DateTime") == 0) ||
+                  (strcmp(voType, "https://uri.etsi.org/ngsi-ld/DateTime") == 0))
+                dt = "xsd:dateTime";
+
+              vc(shortName, dt, atValueP);
+            }
+          }
+        }
+      }
+
+      //
       // § 4.5.x / JSON-LD — when the term carries `@type: @vocab`, its
       // string values are themselves vocab terms and must be expanded
       // through the active @context. Core-context terms that need this:
