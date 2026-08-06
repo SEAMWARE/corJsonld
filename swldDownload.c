@@ -22,6 +22,7 @@
 #include "swJsonld/SwldContextCache.h"               // SwldContextCache (for swldCacheGet()->kaP)
 #include "swJsonld/swldCache.h"                      // swldCacheLookup, swldCacheInsert
 #include "swJsonld/swldContextParse.h"               // swldContextFromObject, swldContextFromTree
+#include "swJsonld/swldUrlResolve.h"                 // swldUrlResolve
 #include "swJsonld/swldInit.h"                       // SwldDownloadFunction, SWLD_CORE_CONTEXT_URL
 #include "swJsonld/swldDownload.h"                   // Own interface
 
@@ -262,7 +263,7 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   }
   else if (atContextP->type == KjArray)
   {
-    contextP = swldContextFromTree(atContextP, storeP);
+    contextP = swldContextFromTree(atContextP, storeP, url);
 
     if (contextP != NULL)
       contextP->url = kaStrdup(storeP, url);
@@ -273,8 +274,15 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
     // Redirect: @context is a URL string - follow it
     //
     swldCacheDownloadingRemove(url);
+
+    //
+    // The string is an IRI reference and may be relative - it resolves against the URL this very
+    // @context was downloaded from
+    //
+    const char* redirectUrl = swldUrlResolve(url, atContextP->value.s, kaP);
+
     free(body);
-    return swldContextFromUrl(atContextP->value.s, kaP);
+    return swldContextFromUrl(redirectUrl, kaP);
   }
 
   //

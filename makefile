@@ -33,7 +33,8 @@ LIB_SOURCES   = swJsonld.c          \
                 swldPrefixExpand.c  \
                 swldCache.c         \
                 swldDownload.c      \
-                swldIdGen.c
+                swldIdGen.c         \
+                swldUrlResolve.c
 
 LIB_OBJS      = $(LIB_SOURCES:c=o)
 LIB_DEPS      = $(LIB_SOURCES:c=d)

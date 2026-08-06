@@ -305,7 +305,7 @@ SwldContext* swldExpandTree(KjNode* treeP, SwldContext* userContextP, KAlloc* ka
 
     if (atContextP != NULL)
     {
-      bodyCtxP = swldContextFromTree(atContextP, kaP);
+      bodyCtxP = swldContextFromTree(atContextP, kaP, NULL);   // Inline @context - no URL of its own, so no base
       kjChildRemove(treeP, atContextP);
     }
 
@@ -331,7 +331,7 @@ SwldContext* swldExpandTree(KjNode* treeP, SwldContext* userContextP, KAlloc* ka
 
       if (atContextP != NULL)
       {
-        elemCtxP = swldContextFromTree(atContextP, kaP);
+        elemCtxP = swldContextFromTree(atContextP, kaP, NULL);   // Inline @context - no URL of its own, so no base
         kjChildRemove(itemP, atContextP);
       }
 

@@ -18,6 +18,7 @@
 #include "swJsonld/swldTraceLevels.h"                // SwldTContextParse
 #include "swJsonld/swldPrefixExpand.h"               // swldPrefixExpand
 #include "swJsonld/swldDownload.h"                   // swldContextFromUrl
+#include "swJsonld/swldUrlResolve.h"                 // swldUrlResolve
 #include "swJsonld/swldContextParse.h"               // Own interface
 
 
@@ -245,7 +246,7 @@ SwldContext* swldContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* 
 //
 // swldContextFromTree -
 //
-SwldContext* swldContextFromTree(KjNode* contextNode, KAlloc* kaP)
+SwldContext* swldContextFromTree(KjNode* contextNode, KAlloc* kaP, const char* baseUrl)
 {
   if (contextNode == NULL)
     return NULL;
@@ -253,9 +254,11 @@ SwldContext* swldContextFromTree(KjNode* contextNode, KAlloc* kaP)
   if (contextNode->type == KjString)
   {
     //
-    // URL reference - download and parse
+    // IRI reference - resolve it against the URL of the @context it appeared in, then download
+    // and parse. 'baseUrl' is NULL for an @context that arrived inline in a request body, and
+    // swldUrlResolve then leaves the reference exactly as it is.
     //
-    return swldContextFromUrl(contextNode->value.s, kaP);
+    return swldContextFromUrl(swldUrlResolve(baseUrl, contextNode->value.s, kaP), kaP);
   }
 
   if (contextNode->type == KjObject)
@@ -293,7 +296,17 @@ SwldContext* swldContextFromTree(KjNode* contextNode, KAlloc* kaP)
 
     for (KjNode* childP = contextNode->value.firstChildP; childP != NULL; childP = childP->next)
     {
-      contextP->contextV[ix] = swldContextFromTree(childP, kaP);
+      contextP->contextV[ix] = swldContextFromTree(childP, kaP, baseUrl);
+
+      //
+      // An element that cannot be resolved fails the whole @context. Carrying on without it
+      // would leave the terms it defines to fall back on the default context, and the request
+      // would be accepted with the Entity stored under the wrong Attribute names.
+      // TS 104-176 clause 6: LdContextNotAvailable, 504 - raised by the caller.
+      //
+      if (contextP->contextV[ix] == NULL)
+        return NULL;
+
       ix += 1;
     }
 

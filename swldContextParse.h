@@ -18,7 +18,7 @@
 //
 // swldContextFromTree -
 //
-extern SwldContext* swldContextFromTree(KjNode* contextNode, KAlloc* kaP);
+extern SwldContext* swldContextFromTree(KjNode* contextNode, KAlloc* kaP, const char* baseUrl);
 
 
 
