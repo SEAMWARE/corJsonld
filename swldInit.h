@@ -35,9 +35,28 @@ typedef char* (*SwldDownloadFunction)(const char* url, int* statusCodeP);
 
 // -----------------------------------------------------------------------------
 //
+// SwldErrorFunction - callback for reporting WHY an @context could not be used
+//
+// swldContextFromUrl answers NULL for every kind of failure, and the caller then
+// has to guess - it guesses "could not be retrieved", which is right for a
+// download that failed and wrong for an @context that was retrieved perfectly
+// well and is simply unusable. A cyclic @context is the second kind: both
+// documents download, they just reference each other.
+//
+// The library reports the ones it can name through this callback, in the terms
+// an API layer needs: an HTTP status, a title and a detail. Whether that becomes
+// a ProblemDetails, a log line or nothing at all is the caller's business - which
+// is why the JSON-LD layer does not reach for one itself.
+//
+typedef void (*SwldErrorFunction)(int status, const char* title, const char* detail);
+
+
+
+// -----------------------------------------------------------------------------
+//
 // swldInit -
 //
-extern int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downloadFn);
+extern int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downloadFn, SwldErrorFunction errorFn);
 
 
 

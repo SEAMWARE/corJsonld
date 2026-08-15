@@ -117,6 +117,7 @@ static void coreContextPrefixSnapshot(SwldContext* contextP)
   }
 }
 static SwldDownloadFunction  swldDownloadFn       = NULL;
+static SwldErrorFunction     swldErrorFn          = NULL;
 
 
 
@@ -149,6 +150,17 @@ SwldContextCache* swldCacheGet(void)
 SwldDownloadFunction swldDownloadGet(void)
 {
   return swldDownloadFn;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// swldErrorGet - internal, used by swldDownload.c via extern
+//
+SwldErrorFunction swldErrorGet(void)
+{
+  return swldErrorFn;
 }
 
 
@@ -355,7 +367,7 @@ static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
 //
 // swldInit -
 //
-int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downloadFn)
+int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downloadFn, SwldErrorFunction errorFn)
 {
   if (swldInitialized == true)
     return 0;
@@ -365,6 +377,7 @@ int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downl
   swldGlobalCache.maxEntries = 100;
   swldGlobalCache.kaP        = kaP;
   swldDownloadFn             = downloadFn;
+  swldErrorFn                = errorFn;
   swldInitialized            = true;
 
   //

@@ -109,6 +109,7 @@ bool swldIsCoreContextUrl(const char* url)
 // swldDownloadGet - defined in swldInit.c
 //
 extern SwldDownloadFunction swldDownloadGet(void);
+extern SwldErrorFunction    swldErrorGet(void);
 
 
 
@@ -186,7 +187,22 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   // thread) and then fails just the same.
   //
   if (downloadState == SWLD_DOWNLOAD_CYCLE)
+  {
+    //
+    // Reported as 400 and not as "could not be retrieved": this @context WAS
+    // retrieved, and so was the one that references it back - they are simply
+    // not usable together. JSON-LD 1.1 keeps the two apart the same way (a
+    // 'remote contexts' array to detect cyclical inclusions, distinct from
+    // 'loading remote context failed'), and only one of the two answers tells
+    // the client something it can act on.
+    //
+    SwldErrorFunction errorFn = swldErrorGet();
+
+    if (errorFn != NULL)
+      errorFn(400, "Cyclic @context", url);
+
     return NULL;
+  }
 
   if (downloadState == SWLD_DOWNLOAD_OTHER)
   {
