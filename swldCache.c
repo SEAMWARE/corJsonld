@@ -313,11 +313,24 @@ void swldCacheSnapshot(KAlloc* allocP, SwldContext*** arrPP, int* nP)
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheDownloadingAdd - returns true if URL was added, false if already downloading
+// swldCacheDownloadingAdd - claim the URL for downloading, or say who else has it
 //
-bool swldCacheDownloadingAdd(const char* url)
+// Returns:
+//   SWLD_DOWNLOAD_MINE    - nobody was downloading it; the caller downloads it
+//   SWLD_DOWNLOAD_OTHER   - another thread is downloading it; the caller waits
+//   SWLD_DOWNLOAD_CYCLE   - THIS thread is already downloading it: the @context
+//                           references itself, directly or through a chain, and
+//                           the download that would end the wait is the very call
+//                           that is now asking. Waiting would burn the full
+//                           deadline and fail anyway.
+//
+// The lookup and the add are one critical section on purpose: two threads that
+// both looked first and then added would both download.
+//
+int swldCacheDownloadingAdd(const char* url)
 {
   SwldContextCache* cacheP = swldCacheGet();
+  pthread_t         me     = pthread_self();
 
   pthread_mutex_lock(&cacheP->mutex);
 
@@ -325,19 +338,28 @@ bool swldCacheDownloadingAdd(const char* url)
   {
     if (strcmp(cacheP->downloading[ix], url) == 0)
     {
+      int result = (pthread_equal(cacheP->downloadOwner[ix], me) != 0)? SWLD_DOWNLOAD_CYCLE : SWLD_DOWNLOAD_OTHER;
+
       pthread_mutex_unlock(&cacheP->mutex);
-      return false;
+      return result;
     }
   }
 
+  //
+  // A full list means more than SWLD_MAX_DOWNLOADING downloads are in flight at
+  // once. The caller is told to go ahead: an untracked download costs at worst a
+  // duplicate fetch, while answering "somebody else has it" would make it wait
+  // for a download nobody is doing.
+  //
   if (cacheP->downloadCount < SWLD_MAX_DOWNLOADING)
   {
-    cacheP->downloading[cacheP->downloadCount] = (char*) url;
+    cacheP->downloading[cacheP->downloadCount]   = (char*) url;
+    cacheP->downloadOwner[cacheP->downloadCount] = me;
     cacheP->downloadCount += 1;
   }
 
   pthread_mutex_unlock(&cacheP->mutex);
-  return true;
+  return SWLD_DOWNLOAD_MINE;
 }
 
 
@@ -356,8 +378,16 @@ void swldCacheDownloadingRemove(const char* url)
   {
     if (strcmp(cacheP->downloading[ix], url) == 0)
     {
+      //
+      // The owner moves with its URL: compacting one array and not the other
+      // would hand an entry somebody else's owner, and the cycle check would
+      // then answer for the wrong thread in both directions.
+      //
       for (int jx = ix; jx < cacheP->downloadCount - 1; jx++)
-        cacheP->downloading[jx] = cacheP->downloading[jx + 1];
+      {
+        cacheP->downloading[jx]   = cacheP->downloading[jx + 1];
+        cacheP->downloadOwner[jx] = cacheP->downloadOwner[jx + 1];
+      }
 
       cacheP->downloadCount -= 1;
       break;

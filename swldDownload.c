@@ -116,7 +116,7 @@ extern SwldDownloadFunction swldDownloadGet(void);
 //
 // swldCacheDownloadingAdd/Remove/Check - defined in swldCache.c
 //
-extern bool swldCacheDownloadingAdd(const char* url);
+extern int  swldCacheDownloadingAdd(const char* url);
 extern void swldCacheDownloadingRemove(const char* url);
 extern bool swldCacheDownloadingCheck(const char* url);
 
@@ -176,10 +176,22 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   //
   // Step 2: Check if another thread is downloading this URL
   //
-  if (swldCacheDownloadingAdd(url) == false)
+  int downloadState = swldCacheDownloadingAdd(url);
+
+  //
+  // A cyclic @context - this very thread is already downloading this URL, and has
+  // recursed back into it through the members of an array @context. There is
+  // nothing to wait for: the download that would end the wait is the call that is
+  // now asking. Waiting anyway costs the full deadline (three seconds of a request
+  // thread) and then fails just the same.
+  //
+  if (downloadState == SWLD_DOWNLOAD_CYCLE)
+    return NULL;
+
+  if (downloadState == SWLD_DOWNLOAD_OTHER)
   {
     //
-    // Another thread is downloading - poll the cache
+    // Another thread is downloading it - poll the cache until it lands.
     //
     for (int tries = 0; tries < 150; tries++)
     {
