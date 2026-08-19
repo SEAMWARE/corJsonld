@@ -7,6 +7,7 @@
 // AUTHOR          Ken Zangelin
 //
 // Copyright 2026 Seamware
+// SPDX-License-Identifier: Apache-2.0
 //
 // Broker-side URI generator for Hosted JSON-LD contexts (NGSI-LD § 5.13.1).
 // The id is assigned at POST /jsonldContexts time and returned in the

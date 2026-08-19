@@ -7,7 +7,7 @@ standalone.
 
 - **Version:** 0.1.0
 - **Language:** C
-- **License:** Apache License 2.0 — Copyright 2026 Seamware
+- **License:** [Apache License 2.0](LICENSE) — Copyright 2026 Seamware
 
 ## Features
 

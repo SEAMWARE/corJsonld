@@ -4,6 +4,7 @@
 // AUTHOR          Ken Zangelin
 //
 // Copyright 2026 Seamware
+// SPDX-License-Identifier: Apache-2.0
 //
 // NGSI-LD Core Context v1.9 - embedded JSON body
 // Source: https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context-v1.9.jsonld
