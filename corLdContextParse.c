@@ -1,5 +1,5 @@
 //
-// FILE            swldContextParse.c
+// FILE            corLdContextParse.c
 //
 // AUTHOR          Ken Zangelin
 //
@@ -13,13 +13,13 @@
 #include "kjson/KjNode.h"                            // KjNode, KjValueType
 #include "kjson/kjLookup.h"                          // kjLookup
 #include "khash/khash.h"                             // khashTableCreate, khashItemAdd, khashItemLookup
-#include "swJsonld/SwldItem.h"                       // SwldItem
-#include "swJsonld/SwldContext.h"                     // SwldContext
-#include "swJsonld/swldTraceLevels.h"                // SwldTContextParse
-#include "swJsonld/swldPrefixExpand.h"               // swldPrefixExpand
-#include "swJsonld/swldDownload.h"                   // swldContextFromUrl
-#include "swJsonld/swldUrlResolve.h"                 // swldUrlResolve
-#include "swJsonld/swldContextParse.h"               // Own interface
+#include "corJsonld/CorLdItem.h"                       // CorLdItem
+#include "corJsonld/CorLdContext.h"                     // CorLdContext
+#include "corJsonld/corLdTraceLevels.h"                // CorLdTContextParse
+#include "corJsonld/corLdPrefixExpand.h"               // corLdPrefixExpand
+#include "corJsonld/corLdDownload.h"                   // corLdContextFromUrl
+#include "corJsonld/corLdUrlResolve.h"                 // corLdUrlResolve
+#include "corJsonld/corLdContextParse.h"               // Own interface
 
 
 
@@ -48,7 +48,7 @@ static unsigned int nameHashCode(const char* name)
 //
 static int nameCompare(const char* name, void* itemP)
 {
-  return strcmp(name, ((SwldItem*) itemP)->name);
+  return strcmp(name, ((CorLdItem*) itemP)->name);
 }
 
 
@@ -78,23 +78,23 @@ static unsigned int valueHashCode(const char* iri)
 //
 static int valueCompare(const char* iri, void* itemP)
 {
-  return strcmp(iri, ((SwldItem*) itemP)->id);
+  return strcmp(iri, ((CorLdItem*) itemP)->id);
 }
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldContextFromObject -
+// corLdContextFromObject -
 //
-SwldContext* swldContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* url)
+CorLdContext* corLdContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* url)
 {
-  SwldContext* contextP = (SwldContext*) kaAlloc(kaP, sizeof(SwldContext));
+  CorLdContext* contextP = (CorLdContext*) kaAlloc(kaP, sizeof(CorLdContext));
 
   if (contextP == NULL)
     return NULL;
 
-  memset(contextP, 0, sizeof(SwldContext));
+  memset(contextP, 0, sizeof(CorLdContext));
 
   contextP->nameHT  = khashTableCreate(kaP, nameHashCode, nameCompare, 128);
   contextP->valueHT = khashTableCreate(kaP, valueHashCode, valueCompare, 128);
@@ -142,7 +142,7 @@ SwldContext* swldContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* 
       continue;
     }
 
-    SwldItem* itemP = (SwldItem*) kaAlloc(kaP, sizeof(SwldItem));
+    CorLdItem* itemP = (CorLdItem*) kaAlloc(kaP, sizeof(CorLdItem));
 
     if (itemP == NULL)
     {
@@ -184,14 +184,14 @@ SwldContext* swldContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* 
       if (containerNodeP != NULL && containerNodeP->type == KjString)
       {
         const char* c = containerNodeP->value.s;
-        if      (strcmp(c, "@language") == 0)  itemP->container = SwldContainerLanguage;
-        else if (strcmp(c, "@index")    == 0)  itemP->container = SwldContainerIndex;
-        else if (strcmp(c, "@list")     == 0)  itemP->container = SwldContainerList;
-        else if (strcmp(c, "@set")      == 0)  itemP->container = SwldContainerSet;
-        else if (strcmp(c, "@type")     == 0)  itemP->container = SwldContainerType;
-        else if (strcmp(c, "@id")       == 0)  itemP->container = SwldContainerId;
-        else if (strcmp(c, "@graph")    == 0)  itemP->container = SwldContainerGraph;
-        else                                   itemP->container = SwldContainerOther;
+        if      (strcmp(c, "@language") == 0)  itemP->container = CorLdContainerLanguage;
+        else if (strcmp(c, "@index")    == 0)  itemP->container = CorLdContainerIndex;
+        else if (strcmp(c, "@list")     == 0)  itemP->container = CorLdContainerList;
+        else if (strcmp(c, "@set")      == 0)  itemP->container = CorLdContainerSet;
+        else if (strcmp(c, "@type")     == 0)  itemP->container = CorLdContainerType;
+        else if (strcmp(c, "@id")       == 0)  itemP->container = CorLdContainerId;
+        else if (strcmp(c, "@graph")    == 0)  itemP->container = CorLdContainerGraph;
+        else                                   itemP->container = CorLdContainerOther;
       }
     }
     else
@@ -212,7 +212,7 @@ SwldContext* swldContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* 
 
     while (listItemP != NULL)
     {
-      SwldItem* itemP = (SwldItem*) listItemP->data;
+      CorLdItem* itemP = (CorLdItem*) listItemP->data;
 
       if (itemP->id != NULL)
       {
@@ -224,7 +224,7 @@ SwldContext* swldContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* 
             (strncmp(itemP->id, "urn:", 4) != 0) &&
             (itemP->id[0] != '@'))
         {
-          char* expanded = swldPrefixExpand(contextP, itemP->id, kaP);
+          char* expanded = corLdPrefixExpand(contextP, itemP->id, kaP);
 
           if (expanded != NULL)
             itemP->id = expanded;
@@ -244,9 +244,9 @@ SwldContext* swldContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* 
 
 // -----------------------------------------------------------------------------
 //
-// swldContextFromTree -
+// corLdContextFromTree -
 //
-SwldContext* swldContextFromTree(KjNode* contextNode, KAlloc* kaP, const char* baseUrl)
+CorLdContext* corLdContextFromTree(KjNode* contextNode, KAlloc* kaP, const char* baseUrl)
 {
   if (contextNode == NULL)
     return NULL;
@@ -256,9 +256,9 @@ SwldContext* swldContextFromTree(KjNode* contextNode, KAlloc* kaP, const char* b
     //
     // IRI reference - resolve it against the URL of the @context it appeared in, then download
     // and parse. 'baseUrl' is NULL for an @context that arrived inline in a request body, and
-    // swldUrlResolve then leaves the reference exactly as it is.
+    // corLdUrlResolve then leaves the reference exactly as it is.
     //
-    return swldContextFromUrl(swldUrlResolve(baseUrl, contextNode->value.s, kaP), kaP);
+    return corLdContextFromUrl(corLdUrlResolve(baseUrl, contextNode->value.s, kaP), kaP);
   }
 
   if (contextNode->type == KjObject)
@@ -266,7 +266,7 @@ SwldContext* swldContextFromTree(KjNode* contextNode, KAlloc* kaP, const char* b
     //
     // Inline context object
     //
-    return swldContextFromObject(contextNode, kaP, NULL);
+    return corLdContextFromObject(contextNode, kaP, NULL);
   }
 
   if (contextNode->type == KjArray)
@@ -279,15 +279,15 @@ SwldContext* swldContextFromTree(KjNode* contextNode, KAlloc* kaP, const char* b
     for (KjNode* childP = contextNode->value.firstChildP; childP != NULL; childP = childP->next)
       count += 1;
 
-    SwldContext* contextP = (SwldContext*) kaAlloc(kaP, sizeof(SwldContext));
+    CorLdContext* contextP = (CorLdContext*) kaAlloc(kaP, sizeof(CorLdContext));
 
     if (contextP == NULL)
       return NULL;
 
-    memset(contextP, 0, sizeof(SwldContext));
+    memset(contextP, 0, sizeof(CorLdContext));
     contextP->isArray  = true;
     contextP->contexts = count;
-    contextP->contextV = (SwldContext**) kaAlloc(kaP, count * sizeof(SwldContext*));
+    contextP->contextV = (CorLdContext**) kaAlloc(kaP, count * sizeof(CorLdContext*));
 
     if (contextP->contextV == NULL)
       return NULL;
@@ -296,7 +296,7 @@ SwldContext* swldContextFromTree(KjNode* contextNode, KAlloc* kaP, const char* b
 
     for (KjNode* childP = contextNode->value.firstChildP; childP != NULL; childP = childP->next)
     {
-      contextP->contextV[ix] = swldContextFromTree(childP, kaP, baseUrl);
+      contextP->contextV[ix] = corLdContextFromTree(childP, kaP, baseUrl);
 
       //
       // An element that cannot be resolved fails the whole @context. Carrying on without it

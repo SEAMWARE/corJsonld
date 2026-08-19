@@ -1,5 +1,5 @@
 //
-// FILE            swldInit.c
+// FILE            corLdInit.c
 //
 // AUTHOR          Ken Zangelin
 //
@@ -17,16 +17,16 @@
 #include "kjson/kjLookup.h"                          // kjLookup
 #include "kjson/kjBufferCreate.h"                    // kjBufferCreate
 #include "khash/khash.h"                             // KHashTable, KHashListItem
-#include "swJsonld/swldTraceLevels.h"                // SwldTInit
-#include "swJsonld/SwldItem.h"                       // SwldItem
-#include "swJsonld/SwldContext.h"                    // SwldContext
-#include "swJsonld/swldContextParse.h"               // swldContextFromObject
-#include "swJsonld/swldExpand.h"                     // contextVocab
-#include "swJsonld/SwldContextCache.h"               // SwldContextCache
-#include "swJsonld/swldCache.h"                      // swldCacheInsert
-#include "swJsonld/swldDownload.h"                   // swldContextFromUrl
-#include "swJsonld/swldCoreContextBody.h"            // swldCoreContextBody
-#include "swJsonld/swldInit.h"                       // Own interface
+#include "corJsonld/corLdTraceLevels.h"                // CorLdTInit
+#include "corJsonld/CorLdItem.h"                       // CorLdItem
+#include "corJsonld/CorLdContext.h"                    // CorLdContext
+#include "corJsonld/corLdContextParse.h"               // corLdContextFromObject
+#include "corJsonld/corLdExpand.h"                     // contextVocab
+#include "corJsonld/CorLdContextCache.h"               // CorLdContextCache
+#include "corJsonld/corLdCache.h"                      // corLdCacheInsert
+#include "corJsonld/corLdDownload.h"                   // corLdContextFromUrl
+#include "corJsonld/corLdCoreContextBody.h"            // corLdCoreContextBody
+#include "corJsonld/corLdInit.h"                       // Own interface
 
 
 
@@ -34,15 +34,15 @@
 //
 // Global state
 //
-static SwldContextCache      swldGlobalCache;
-static SwldContext*          swldCoreContextP     = NULL;
-static bool                  swldInitialized      = false;
+static CorLdContextCache      corLdGlobalCache;
+static CorLdContext*          corLdCoreContextP     = NULL;
+static bool                  corLdInitialized      = false;
 
-// Core @vocab — the core context ALWAYS carries @vocab (swldInit refuses
+// Core @vocab — the core context ALWAYS carries @vocab (corLdInit refuses
 // to start without one); cached here with its length so the expand hot
 // path uses it directly, no per-call context walk.
-const char* swldCoreVocab    = NULL;
-int         swldCoreVocabLen = 0;
+const char* corLdCoreVocab    = NULL;
+int         corLdCoreVocabLen = 0;
 
 // -----------------------------------------------------------------------------
 //
@@ -54,19 +54,19 @@ int         swldCoreVocabLen = 0;
 // which compact-IRI emission needs (e.g. to render
 // `ngsi-ld:default-context/almostFull` when @vocab strip would be
 // ambiguous). We grab the snapshot pre-rewrite once at init and serve
-// it via swldCorePrefixes() for prefixCompact's longest-match scan.
+// it via corLdCorePrefixes() for prefixCompact's longest-match scan.
 //
-typedef struct SwldCorePrefix {
+typedef struct CorLdCorePrefix {
   const char* name;   // e.g. "ngsi-ld"
   const char* id;     // e.g. "https://uri.etsi.org/ngsi-ld/"
   int         idLen;
-} SwldCorePrefix;
+} CorLdCorePrefix;
 
-static SwldCorePrefix  corePrefixV[16];   // tiny set in practice (NGSI-LD core has 2: ngsi-ld + geojson)
+static CorLdCorePrefix  corePrefixV[16];   // tiny set in practice (NGSI-LD core has 2: ngsi-ld + geojson)
 static int             corePrefixN = 0;
 
-// Public accessor (declared in swldInit.h).
-const SwldCorePrefix* swldCorePrefixes(int* countP)
+// Public accessor (declared in corLdInit.h).
+const CorLdCorePrefix* corLdCorePrefixes(int* countP)
 {
   if (countP != NULL) *countP = corePrefixN;
   return corePrefixV;
@@ -74,7 +74,7 @@ const SwldCorePrefix* swldCorePrefixes(int* countP)
 
 // Snapshot prefix-shaped core terms before the rewrite. Prefix shape: id
 // ends with '/', '#', or ':'. Recurses for isArray, dedup by name.
-static void coreContextPrefixSnapshot(SwldContext* contextP)
+static void coreContextPrefixSnapshot(CorLdContext* contextP)
 {
   if (contextP == NULL || contextP->ignored == true)
     return;
@@ -93,7 +93,7 @@ static void coreContextPrefixSnapshot(SwldContext* contextP)
   {
     for (KHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
     {
-      SwldItem* itP = (SwldItem*) lP->data;
+      CorLdItem* itP = (CorLdItem*) lP->data;
       if (itP == NULL || itP->name == NULL || itP->id == NULL) continue;
       if (itP->name[0] == '@') continue;
 
@@ -116,51 +116,51 @@ static void coreContextPrefixSnapshot(SwldContext* contextP)
     }
   }
 }
-static SwldDownloadFunction  swldDownloadFn       = NULL;
-static SwldErrorFunction     swldErrorFn          = NULL;
+static CorLdDownloadFunction  corLdDownloadFn       = NULL;
+static CorLdErrorFunction     corLdErrorFn          = NULL;
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldCoreContext -
+// corLdCoreContext -
 //
-SwldContext* swldCoreContext(void)
+CorLdContext* corLdCoreContext(void)
 {
-  return swldCoreContextP;
+  return corLdCoreContextP;
 }
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheGet - internal, used by swldCache.c via extern
+// corLdCacheGet - internal, used by corLdCache.c via extern
 //
-SwldContextCache* swldCacheGet(void)
+CorLdContextCache* corLdCacheGet(void)
 {
-  return &swldGlobalCache;
+  return &corLdGlobalCache;
 }
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldDownloadGet - internal, used by swldDownload.c via extern
+// corLdDownloadGet - internal, used by corLdDownload.c via extern
 //
-SwldDownloadFunction swldDownloadGet(void)
+CorLdDownloadFunction corLdDownloadGet(void)
 {
-  return swldDownloadFn;
+  return corLdDownloadFn;
 }
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldErrorGet - internal, used by swldDownload.c via extern
+// corLdErrorGet - internal, used by corLdDownload.c via extern
 //
-SwldErrorFunction swldErrorGet(void)
+CorLdErrorFunction corLdErrorGet(void)
 {
-  return swldErrorFn;
+  return corLdErrorFn;
 }
 
 
@@ -171,14 +171,14 @@ SwldErrorFunction swldErrorGet(void)
 //
 // The core-context shortcut keeps NGSI-LD core terms in their short form
 // throughout the broker pipeline (parse, cache, DB, render). Done here at
-// init time, exactly once: swldExpand naturally returns the short name for
+// init time, exactly once: corLdExpand naturally returns the short name for
 // any core term thereafter, with no per-call branching.
 //
 // Items whose id is a JSON-LD keyword (e.g. "id" -> "@id", "type" -> "@type")
 // must keep their id intact so the @-keyword bypass in expandObject and the
 // @type-value branch continue to fire.
 //
-static void coreContextRewriteToShort(SwldContext* contextP)
+static void coreContextRewriteToShort(CorLdContext* contextP)
 {
   if (contextP == NULL)
     return;
@@ -197,7 +197,7 @@ static void coreContextRewriteToShort(SwldContext* contextP)
   {
     for (KHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
     {
-      SwldItem* itemP = (SwldItem*) lP->data;
+      CorLdItem* itemP = (CorLdItem*) lP->data;
 
       if (itemP == NULL || itemP->id == NULL || itemP->name == NULL)
         continue;
@@ -257,9 +257,9 @@ static unsigned char coreTermFlags(const char* name)
 
 // -----------------------------------------------------------------------------
 //
-// coreContextClassifyFlags - set SwldItem.flags on every core-context item
+// coreContextClassifyFlags - set CorLdItem.flags on every core-context item
 //
-static void coreContextClassifyFlags(SwldContext* contextP)
+static void coreContextClassifyFlags(CorLdContext* contextP)
 {
   if (contextP == NULL)
     return;
@@ -278,7 +278,7 @@ static void coreContextClassifyFlags(SwldContext* contextP)
   {
     for (KHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
     {
-      SwldItem* itemP = (SwldItem*) lP->data;
+      CorLdItem* itemP = (CorLdItem*) lP->data;
 
       if (itemP == NULL || itemP->name == NULL)
         continue;
@@ -294,12 +294,12 @@ static void coreContextClassifyFlags(SwldContext* contextP)
 //
 // coreContextFromEmbedded - parse the compiled-in core context body
 //
-static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
+static CorLdContext* coreContextFromEmbedded(KAlloc* kaP)
 {
   //
   // strdup because kjParse is destructive
   //
-  char* body = strdup(swldCoreContextBody);
+  char* body = strdup(corLdCoreContextBody);
 
   if (body == NULL)
     return NULL;
@@ -323,15 +323,15 @@ static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
     return NULL;
   }
 
-  SwldContext* contextP = swldContextFromObject(atContextP, kaP, SWLD_CORE_CONTEXT_URL);
+  CorLdContext* contextP = corLdContextFromObject(atContextP, kaP, CORLD_CORE_CONTEXT_URL);
 
   if (contextP != NULL)
   {
     //
     // Snapshot prefix-shaped terms (e.g. ngsi-ld → https://uri.etsi.org/ngsi-ld/)
     // BEFORE the rewrite — the rewrite flattens id to name and the prefix
-    // URL is gone after. swldCorePrefixes() serves the snapshot for
-    // compact-IRI emission in swldCompact step 5.
+    // URL is gone after. corLdCorePrefixes() serves the snapshot for
+    // compact-IRI emission in corLdCompact step 5.
     //
     coreContextPrefixSnapshot(contextP);
 
@@ -344,7 +344,7 @@ static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
 
     //
     // Preserve the compiled-in body for GET /jsonldContexts/{id}.
-    // swldCoreContextBody lives for the process lifetime, so we point at
+    // corLdCoreContextBody lives for the process lifetime, so we point at
     // it directly rather than duplicating.
     //
     // Kind stays "ImplicitlyCreated": "Cached" would drag the core into
@@ -352,9 +352,9 @@ static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
     // Cached entries — all blast radius, no conformance gain (the suite
     // never asserts the core's kind).
     //
-    contextP->body = (char*) swldCoreContextBody;
-    contextP->kind = SwldKindImplicit;
-    swldCacheInsert(contextP);
+    contextP->body = (char*) corLdCoreContextBody;
+    contextP->kind = CorLdKindImplicit;
+    corLdCacheInsert(contextP);
   }
 
   free(body);
@@ -365,28 +365,28 @@ static SwldContext* coreContextFromEmbedded(KAlloc* kaP)
 
 // -----------------------------------------------------------------------------
 //
-// swldInit -
+// corLdInit -
 //
-int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downloadFn, SwldErrorFunction errorFn)
+int corLdInit(KAlloc* kaP, const char* coreContextUrl, CorLdDownloadFunction downloadFn, CorLdErrorFunction errorFn)
 {
-  if (swldInitialized == true)
+  if (corLdInitialized == true)
     return 0;
 
-  memset(&swldGlobalCache, 0, sizeof(swldGlobalCache));
-  pthread_mutex_init(&swldGlobalCache.mutex, NULL);
-  swldGlobalCache.maxEntries = 100;
-  swldGlobalCache.kaP        = kaP;
-  swldDownloadFn             = downloadFn;
-  swldErrorFn                = errorFn;
-  swldInitialized            = true;
+  memset(&corLdGlobalCache, 0, sizeof(corLdGlobalCache));
+  pthread_mutex_init(&corLdGlobalCache.mutex, NULL);
+  corLdGlobalCache.maxEntries = 100;
+  corLdGlobalCache.kaP        = kaP;
+  corLdDownloadFn             = downloadFn;
+  corLdErrorFn                = errorFn;
+  corLdInitialized            = true;
 
   //
   // If no URL given, or it matches the default, use the embedded body
   //
-  if (coreContextUrl == NULL || strcmp(coreContextUrl, SWLD_CORE_CONTEXT_URL) == 0)
+  if (coreContextUrl == NULL || strcmp(coreContextUrl, CORLD_CORE_CONTEXT_URL) == 0)
   {
-    swldCoreContextP = coreContextFromEmbedded(kaP);
-    if (swldCoreContextP == NULL)
+    corLdCoreContextP = coreContextFromEmbedded(kaP);
+    if (corLdCoreContextP == NULL)
       return -1;
   }
   else
@@ -394,32 +394,32 @@ int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downl
     //
     // Non-default URL: download from network
     //
-    swldCoreContextP = swldContextFromUrl(coreContextUrl, kaP);
-    if (swldCoreContextP == NULL)
+    corLdCoreContextP = corLdContextFromUrl(coreContextUrl, kaP);
+    if (corLdCoreContextP == NULL)
       return -1;
 
-    coreContextPrefixSnapshot(swldCoreContextP);
-    coreContextRewriteToShort(swldCoreContextP);
-    coreContextClassifyFlags(swldCoreContextP);
+    coreContextPrefixSnapshot(corLdCoreContextP);
+    coreContextRewriteToShort(corLdCoreContextP);
+    coreContextClassifyFlags(corLdCoreContextP);
   }
 
   //
   // The core context MUST declare @vocab — it's the unconditional fallback
   // for any short term no context defined explicitly (JSON-LD § 4.1.2).
-  // Without it, swldExpand has no way to construct an IRI for unknown user
+  // Without it, corLdExpand has no way to construct an IRI for unknown user
   // terms and would silently leak them downstream, corrupting cache / DB /
   // distop comparisons that all assume fully-expanded IRIs.
   //
   // Refuse to start rather than discover this on the Nth request after
   // some entity has already been persisted with bare names.
   //
-  swldCoreVocab = contextVocab(swldCoreContextP);
-  if (swldCoreVocab == NULL)
+  corLdCoreVocab = contextVocab(corLdCoreContextP);
+  if (corLdCoreVocab == NULL)
   {
     KT_E("Core context has no @vocab member — broker cannot expand unknown user terms. Refusing to start.");
     return -1;
   }
-  swldCoreVocabLen = (int) strlen(swldCoreVocab);
+  corLdCoreVocabLen = (int) strlen(corLdCoreVocab);
 
   return 0;
 }
@@ -428,18 +428,18 @@ int swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downl
 
 // -----------------------------------------------------------------------------
 //
-// swldCleanup -
+// corLdCleanup -
 //
-void swldCleanup(void)
+void corLdCleanup(void)
 {
-  if (swldInitialized == false)
+  if (corLdInitialized == false)
     return;
 
-  pthread_mutex_destroy(&swldGlobalCache.mutex);
-  memset(&swldGlobalCache, 0, sizeof(swldGlobalCache));
-  swldCoreContextP = NULL;
-  swldDownloadFn   = NULL;
-  swldInitialized  = false;
-  swldCoreVocab    = NULL;
-  swldCoreVocabLen = 0;
+  pthread_mutex_destroy(&corLdGlobalCache.mutex);
+  memset(&corLdGlobalCache, 0, sizeof(corLdGlobalCache));
+  corLdCoreContextP = NULL;
+  corLdDownloadFn   = NULL;
+  corLdInitialized  = false;
+  corLdCoreVocab    = NULL;
+  corLdCoreVocabLen = 0;
 }

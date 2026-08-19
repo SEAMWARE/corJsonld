@@ -1,5 +1,5 @@
 //
-// FILE            swldExpandTree.c
+// FILE            corLdExpandTree.c
 //
 // AUTHOR          Ken Zangelin
 //
@@ -11,12 +11,12 @@
 #include "kjson/KjNode.h"                            // KjNode, KjObject
 #include "kjson/kjLookup.h"                          // kjLookup
 #include "kjson/kjBuilder.h"                         // kjChildRemove
-#include "swJsonld/SwldContext.h"                     // SwldContext
-#include "swJsonld/swldTraceLevels.h"                // SwldTExpand
-#include "swJsonld/swldInit.h"                       // swldCoreContext
-#include "swJsonld/swldExpand.h"                     // swldExpand
-#include "swJsonld/swldContextParse.h"               // swldContextFromTree
-#include "swJsonld/swldExpandTree.h"                 // Own interface
+#include "corJsonld/CorLdContext.h"                     // CorLdContext
+#include "corJsonld/corLdTraceLevels.h"                // CorLdTExpand
+#include "corJsonld/corLdInit.h"                       // corLdCoreContext
+#include "corJsonld/corLdExpand.h"                     // corLdExpand
+#include "corJsonld/corLdContextParse.h"               // corLdContextFromTree
+#include "corJsonld/corLdExpandTree.h"                 // Own interface
 
 
 
@@ -24,7 +24,7 @@
 //
 // expandObject - recursively expand all names inside an object
 //
-static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, int level)
+static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, int level)
 {
   if (objectP == NULL || objectP->type != KjObject)
     return;
@@ -44,8 +44,8 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
     // Expand the name - but discard if it expands to an @-keyword
     //
     bool coreContext = false;
-    SwldItem* termItemP = NULL;
-    char* expanded = swldExpand(contextP, childP->name, kaP, &termItemP, &coreContext);
+    CorLdItem* termItemP = NULL;
+    char* expanded = corLdExpand(contextP, childP->name, kaP, &termItemP, &coreContext);
 
     // Copy the term's classification bits (KJF_*) from the matched context item
     // onto the node, so the broker tells structural members from sub-attributes
@@ -67,7 +67,7 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
     // default-context IRized keys, unreachable by q=attr[c.d].
     int  vk         = (termItemP != NULL) ? KJF_VK_ID(termItemP->flags) : KJF_VK_NONE;
     bool opaqueKeys = (termItemP != NULL &&
-                       ((termItemP->container & SWLD_CONTAINER_OPAQUE_KEYS) != 0 ||
+                       ((termItemP->container & CORLD_CONTAINER_OPAQUE_KEYS) != 0 ||
                         vk == KJF_VK_VALUE || vk == KJF_VK_JSON || vk == KJF_VK_VALUELIST));
 
     if (expanded != NULL && expanded[0] != '@')
@@ -80,7 +80,7 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
       // properties take after expansion). The term-binding branches below act
       // only on DIRECT primitive values, so an explicit value-object would
       // otherwise skip both @value validation and @vocab expansion. Validate Y
-      // against its OWN @type via the same SwldValueCheck callback the primitive
+      // against its OWN @type via the same CorLdValueCheck callback the primitive
       // path uses (mapping the NGSI-LD `DateTime` type onto xsd:dateTime so the
       // existing per-type checks apply), and @vocab-expand Y — KEEPING the
       // object node verbatim so a GET round-trips the submitted representation.
@@ -103,7 +103,7 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
             // @vocab — the @value is itself a vocab term (or array of them).
             if (atValueP->type == KjString && atValueP->value.s != NULL && atValueP->value.s[0] != '\0')
             {
-              char* ev = swldExpand(contextP, atValueP->value.s, kaP, NULL, NULL);
+              char* ev = corLdExpand(contextP, atValueP->value.s, kaP, NULL, NULL);
               if (ev != NULL) atValueP->value.s = ev;
             }
             else if (atValueP->type == KjArray)
@@ -111,14 +111,14 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
               for (KjNode* elemP = atValueP->value.firstChildP; elemP != NULL; elemP = elemP->next)
                 if (elemP->type == KjString && elemP->value.s != NULL && elemP->value.s[0] != '\0')
                 {
-                  char* ev = swldExpand(contextP, elemP->value.s, kaP, NULL, NULL);
+                  char* ev = corLdExpand(contextP, elemP->value.s, kaP, NULL, NULL);
                   if (ev != NULL) elemP->value.s = ev;
                 }
             }
           }
           else if (voType != NULL && atValueP->type != KjObject && atValueP->type != KjArray)
           {
-            SwldValueCheck vc = swldGetValueCheck();
+            CorLdValueCheck vc = corLdGetValueCheck();
             if (vc != NULL)
             {
               const char* shortName = (termItemP != NULL && termItemP->name != NULL) ? termItemP->name : childP->name;
@@ -162,7 +162,7 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
         // prefixed by @vocab and silently passes URI-shape checks.
         if (childP->type == KjString && childP->value.s != NULL && childP->value.s[0] != '\0')
         {
-          char* ev = swldExpand(contextP, childP->value.s, kaP, NULL, NULL);
+          char* ev = corLdExpand(contextP, childP->value.s, kaP, NULL, NULL);
           if (ev != NULL) childP->value.s = ev;
         }
         else if (childP->type == KjArray)
@@ -171,7 +171,7 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
           {
             if (elemP->type == KjString && elemP->value.s != NULL && elemP->value.s[0] != '\0')
             {
-              char* ev = swldExpand(contextP, elemP->value.s, kaP, NULL, NULL);
+              char* ev = corLdExpand(contextP, elemP->value.s, kaP, NULL, NULL);
               if (ev != NULL) elemP->value.s = ev;
             }
           }
@@ -179,7 +179,7 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
       }
       //
       // Other @type:<datatype> bindings (xsd:dateTime, xsd:integer, …):
-      // delegate to the registered SwldValueCheck callback so the broker
+      // delegate to the registered CorLdValueCheck callback so the broker
       // can reject ill-formed values at expansion time (§ 4.3 JSON-LD).
       // @id values are deliberately NOT routed here — coercing a bare
       // name to an IRI would launder it past downstream URI validators.
@@ -193,7 +193,7 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
                termItemP->type != NULL &&
                strcmp(termItemP->type, "@id") != 0)
       {
-        SwldValueCheck vc = swldGetValueCheck();
+        CorLdValueCheck vc = corLdGetValueCheck();
         if (vc != NULL)
         {
           const char* shortName = (termItemP->name != NULL) ? termItemP->name : childP->name;
@@ -222,7 +222,7 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
       //
       if (childP->type == KjString)
       {
-        char* expandedValue = swldExpand(contextP, childP->value.s, kaP, NULL, NULL);
+        char* expandedValue = corLdExpand(contextP, childP->value.s, kaP, NULL, NULL);
 
         if (expandedValue != NULL)
           childP->value.s = expandedValue;
@@ -233,7 +233,7 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
         {
           if (elemP->type == KjString)
           {
-            char* expandedValue = swldExpand(contextP, elemP->value.s, kaP, NULL, NULL);
+            char* expandedValue = corLdExpand(contextP, elemP->value.s, kaP, NULL, NULL);
 
             if (expandedValue != NULL)
               elemP->value.s = expandedValue;
@@ -264,13 +264,13 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
 
 // -----------------------------------------------------------------------------
 //
-// swldExpandTree -
+// corLdExpandTree -
 //
 // Two kinds of body are handled:
 //
 //   Single object ({ ... })
 //     - Look for a root @context child. If present, parse it (string URL,
-//       inline object, or array of either — swldContextFromTree handles all
+//       inline object, or array of either — corLdContextFromTree handles all
 //       three), use it to expand child names, and remove it from the tree.
 //
 //   Array body ([ ... , ... ]) — i.e. a batch op
@@ -281,7 +281,7 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
 //       here would break it — the entity-batch service routines that DO
 //       require objects validate that for themselves).
 //
-// The returned SwldContext* is the representative context of the request
+// The returned CorLdContext* is the representative context of the request
 // (used downstream for link-header emit / response compaction). For an
 // array body that's the first element's context; callers who care about
 // per-element contexts must track them out-of-band.
@@ -290,26 +290,26 @@ static void expandObject(KjNode* objectP, SwldContext* contextP, KAlloc* kaP, in
 // boundary sees a stray @context (it would otherwise flow into service
 // routines as if it were a user attribute — subtle stored-Property leak).
 //
-SwldContext* swldExpandTree(KjNode* treeP, SwldContext* userContextP, KAlloc* kaP)
+CorLdContext* corLdExpandTree(KjNode* treeP, CorLdContext* userContextP, KAlloc* kaP)
 {
   if (treeP == NULL)
     return NULL;
 
   if (userContextP == NULL)
-    userContextP = swldCoreContext();
+    userContextP = corLdCoreContext();
 
   if (treeP->type == KjObject)
   {
     KjNode*      atContextP = kjLookup(treeP, "@context");
-    SwldContext* bodyCtxP   = NULL;
+    CorLdContext* bodyCtxP   = NULL;
 
     if (atContextP != NULL)
     {
-      bodyCtxP = swldContextFromTree(atContextP, kaP, NULL);   // Inline @context - no URL of its own, so no base
+      bodyCtxP = corLdContextFromTree(atContextP, kaP, NULL);   // Inline @context - no URL of its own, so no base
       kjChildRemove(treeP, atContextP);
     }
 
-    SwldContext* contextP = (bodyCtxP != NULL) ? bodyCtxP : userContextP;
+    CorLdContext* contextP = (bodyCtxP != NULL) ? bodyCtxP : userContextP;
     if (contextP == NULL)
       return NULL;
 
@@ -319,7 +319,7 @@ SwldContext* swldExpandTree(KjNode* treeP, SwldContext* userContextP, KAlloc* ka
 
   if (treeP->type == KjArray)
   {
-    SwldContext* firstContextP = NULL;
+    CorLdContext* firstContextP = NULL;
 
     for (KjNode* itemP = treeP->value.firstChildP; itemP != NULL; itemP = itemP->next)
     {
@@ -327,15 +327,15 @@ SwldContext* swldExpandTree(KjNode* treeP, SwldContext* userContextP, KAlloc* ka
         continue;
 
       KjNode*      atContextP = kjLookup(itemP, "@context");
-      SwldContext* elemCtxP   = NULL;
+      CorLdContext* elemCtxP   = NULL;
 
       if (atContextP != NULL)
       {
-        elemCtxP = swldContextFromTree(atContextP, kaP, NULL);   // Inline @context - no URL of its own, so no base
+        elemCtxP = corLdContextFromTree(atContextP, kaP, NULL);   // Inline @context - no URL of its own, so no base
         kjChildRemove(itemP, atContextP);
       }
 
-      SwldContext* useCtx = (elemCtxP != NULL) ? elemCtxP : userContextP;
+      CorLdContext* useCtx = (elemCtxP != NULL) ? elemCtxP : userContextP;
       if (useCtx == NULL)
         continue;
 

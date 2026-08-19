@@ -1,5 +1,5 @@
 //
-// FILE            swldUrlResolve.c
+// FILE            corLdUrlResolve.c
 //
 // AUTHOR          Ken Zangelin
 //
@@ -12,7 +12,7 @@
 #include "kalloc/KAlloc.h"                           // KAlloc
 #include "kalloc/kaAlloc.h"                          // kaAlloc
 
-#include "swJsonld/swldUrlResolve.h"                 // Own interface
+#include "corJsonld/corLdUrlResolve.h"                 // Own interface
 
 
 
@@ -43,7 +43,7 @@ static bool urlIsAbsolute(const char* ref)
 
 // -----------------------------------------------------------------------------
 //
-// swldUrlResolve - resolve a relative IRI reference against a base URL
+// corLdUrlResolve - resolve a relative IRI reference against a base URL
 //
 // A string inside an @context array is an IRI REFERENCE, not necessarily an absolute URL.
 // JSON-LD resolves it against the base IRI (RFC 3986 § 5), and for a downloaded @context the base
@@ -56,7 +56,7 @@ static bool urlIsAbsolute(const char* ref)
 // 'ref' is returned untouched when it is already absolute, and when there is no base to resolve
 // against - an @context that arrived inline in a request body has no URL of its own.
 //
-const char* swldUrlResolve(const char* base, const char* ref, KAlloc* kaP)
+const char* corLdUrlResolve(const char* base, const char* ref, KAlloc* kaP)
 {
   if ((base == NULL) || (ref == NULL) || (*ref == 0) || (urlIsAbsolute(ref) == true))
     return ref;

@@ -1,5 +1,5 @@
 //
-// FILE            swldCompactTree.c
+// FILE            corLdCompactTree.c
 //
 // AUTHOR          Ken Zangelin
 //
@@ -8,13 +8,13 @@
 #include <string.h>                                  // strcmp
 
 #include "kjson/KjNode.h"                            // KjNode, KjObject, KjArray
-#include "swJsonld/SwldItem.h"                       // SwldItem, SwldContainer*
-#include "swJsonld/SwldContext.h"                     // SwldContext
-#include "swJsonld/swldTraceLevels.h"                // SwldTCompact
-#include "swJsonld/swldInit.h"                       // swldCoreContext
-#include "swJsonld/swldCompact.h"                    // swldCompact
-#include "swJsonld/swldExpand.h"                      // contextItemLookup
-#include "swJsonld/swldCompactTree.h"                // Own interface
+#include "corJsonld/CorLdItem.h"                       // CorLdItem, CorLdContainer*
+#include "corJsonld/CorLdContext.h"                     // CorLdContext
+#include "corJsonld/corLdTraceLevels.h"                // CorLdTCompact
+#include "corJsonld/corLdInit.h"                       // corLdCoreContext
+#include "corJsonld/corLdCompact.h"                    // corLdCompact
+#include "corJsonld/corLdExpand.h"                      // contextItemLookup
+#include "corJsonld/corLdCompactTree.h"                // Own interface
 
 
 
@@ -22,7 +22,7 @@
 //
 // compactObject - recursively compact all names inside an object
 //
-static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
+static void compactObject(KjNode* objectP, CorLdContext* coreP, int level)
 {
   if (objectP == NULL || objectP->type != KjObject)
     return;
@@ -41,7 +41,7 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
     //
     // Compact the name
     //
-    const char* compacted = swldCompact(coreP, childP->name);
+    const char* compacted = corLdCompact(coreP, childP->name);
 
     if (compacted != NULL)
       childP->name = (char*) compacted;
@@ -53,11 +53,11 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
     // and other user contexts may override or define terms). Fall back
     // to core, which carries the canonical NGSI-LD term metadata
     // (@type, @container) that user contexts inherit by reference.
-    SwldItem* termItemP = contextItemLookup(coreP, childP->name);
+    CorLdItem* termItemP = contextItemLookup(coreP, childP->name);
     if (termItemP == NULL)
-      termItemP = contextItemLookup(swldCoreContext(), childP->name);
+      termItemP = contextItemLookup(corLdCoreContext(), childP->name);
     bool opaqueKeys = (termItemP != NULL &&
-                       (termItemP->container & SWLD_CONTAINER_OPAQUE_KEYS) != 0);
+                       (termItemP->container & CORLD_CONTAINER_OPAQUE_KEYS) != 0);
 
     //
     // For "type" fields at entity level, also compact the string value (e.g. full URI -> "Vehicle")
@@ -67,7 +67,7 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
     {
       if (childP->type == KjString)
       {
-        const char* compactedValue = swldCompact(coreP, childP->value.s);
+        const char* compactedValue = corLdCompact(coreP, childP->value.s);
 
         if (compactedValue != NULL)
           childP->value.s = (char*) compactedValue;
@@ -78,7 +78,7 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
         {
           if (elemP->type == KjString)
           {
-            const char* compactedValue = swldCompact(coreP, elemP->value.s);
+            const char* compactedValue = corLdCompact(coreP, elemP->value.s);
 
             if (compactedValue != NULL)
               elemP->value.s = (char*) compactedValue;
@@ -99,7 +99,7 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
     {
       if (childP->type == KjString)
       {
-        const char* cv = swldCompact(coreP, childP->value.s);
+        const char* cv = corLdCompact(coreP, childP->value.s);
         if (cv != NULL) childP->value.s = (char*) cv;
       }
       else if (childP->type == KjArray)
@@ -108,7 +108,7 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
         {
           if (elemP->type == KjString)
           {
-            const char* cv = swldCompact(coreP, elemP->value.s);
+            const char* cv = corLdCompact(coreP, elemP->value.s);
             if (cv != NULL) elemP->value.s = (char*) cv;
           }
         }
@@ -137,9 +137,9 @@ static void compactObject(KjNode* objectP, SwldContext* coreP, int level)
 
 // -----------------------------------------------------------------------------
 //
-// swldCompactTreeWith -
+// corLdCompactTreeWith -
 //
-void swldCompactTreeWith(KjNode* treeP, SwldContext* ctxP)
+void corLdCompactTreeWith(KjNode* treeP, CorLdContext* ctxP)
 {
   if (treeP == NULL || ctxP == NULL)
     return;
@@ -159,9 +159,9 @@ void swldCompactTreeWith(KjNode* treeP, SwldContext* ctxP)
 
 // -----------------------------------------------------------------------------
 //
-// swldCompactTree -
+// corLdCompactTree -
 //
-void swldCompactTree(KjNode* treeP)
+void corLdCompactTree(KjNode* treeP)
 {
-  swldCompactTreeWith(treeP, swldCoreContext());
+  corLdCompactTreeWith(treeP, corLdCoreContext());
 }

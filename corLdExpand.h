@@ -1,27 +1,27 @@
 //
-// FILE            swldExpand.h
+// FILE            corLdExpand.h
 //
 // AUTHOR          Ken Zangelin
 //
 // Copyright 2026 Seamware
 //
-#ifndef SWLD_EXPAND_H
-#define SWLD_EXPAND_H
+#ifndef CORLD_EXPAND_H
+#define CORLD_EXPAND_H
 
 #include <stdbool.h>                                 // bool
 #include "kalloc/KAlloc.h"                           // KAlloc
 #include "kjson/KjNode.h"                            // KjNode
-#include "swJsonld/SwldItem.h"                       // SwldItem
-#include "swJsonld/SwldContext.h"                     // SwldContext
+#include "corJsonld/CorLdItem.h"                       // CorLdItem
+#include "corJsonld/CorLdContext.h"                     // CorLdContext
 
 
 
 // -----------------------------------------------------------------------------
 //
-// KjNode.flags bits (set by swldExpandTree, read by NGSI-LD code)
+// KjNode.flags bits (set by corLdExpandTree, read by NGSI-LD code)
 //
-// These bits are classified ONCE on the core-context SwldItems (swldInit) and
-// copied verbatim onto each KjNode during expansion (swldExpandTree) — so the
+// These bits are classified ONCE on the core-context CorLdItems (corLdInit) and
+// copied verbatim onto each KjNode during expansion (corLdExpandTree) — so the
 // broker decides structure with a bit test, never a strcmp chain.
 //
 // KJF_CORE_TERM - the term is defined by the core @context (any core term:
@@ -57,19 +57,19 @@
 
 // -----------------------------------------------------------------------------
 //
-// SwldVocabExpandCheck - callback to validate a short-name before @vocab expansion
+// CorLdVocabExpandCheck - callback to validate a short-name before @vocab expansion
 //
 // Called with the original short-name. Returns true to allow, false to reject.
 //
-typedef bool (*SwldVocabExpandCheck)(const char* shortName);
+typedef bool (*CorLdVocabExpandCheck)(const char* shortName);
 
-extern void swldSetVocabExpandCheck(SwldVocabExpandCheck fn);
+extern void corLdSetVocabExpandCheck(CorLdVocabExpandCheck fn);
 
 
 
 // -----------------------------------------------------------------------------
 //
-// SwldValueCheck - callback to validate a term's value(s) when the term's
+// CorLdValueCheck - callback to validate a term's value(s) when the term's
 // context binding declares a non-@id / non-@vocab @type (i.e. a datatype
 // like xsd:dateTime, xsd:integer, …). Invoked once per scalar value
 // (arrays are iterated before invocation).
@@ -83,37 +83,37 @@ extern void swldSetVocabExpandCheck(SwldVocabExpandCheck fn);
 // Returns true to accept; false to signal "rejected" — the callback owns
 // the error-emission path (typically ldError on the broker side).
 //
-typedef bool (*SwldValueCheck)(const char* term, const char* datatype, KjNode* valueP);
+typedef bool (*CorLdValueCheck)(const char* term, const char* datatype, KjNode* valueP);
 
-extern void swldSetValueCheck(SwldValueCheck fn);
+extern void corLdSetValueCheck(CorLdValueCheck fn);
 
 // Read accessor for the lib's own expand-tree wiring.
-extern SwldValueCheck swldGetValueCheck(void);
+extern CorLdValueCheck corLdGetValueCheck(void);
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldExpand -
+// corLdExpand -
 //
-extern char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem** itemPP, bool* coreContextP);
+extern char* corLdExpand(CorLdContext* contextP, const char* name, KAlloc* kaP, CorLdItem** itemPP, bool* coreContextP);
 
 
 
 // -----------------------------------------------------------------------------
 //
 // contextItemLookup - look up a term (an "item") by short name in a context
-//                     (handles array contexts). Returns the SwldItem or NULL.
+//                     (handles array contexts). Returns the CorLdItem or NULL.
 //
-extern SwldItem* contextItemLookup(SwldContext* contextP, const char* name);
+extern CorLdItem* contextItemLookup(CorLdContext* contextP, const char* name);
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldAlreadyExpanded -
+// corLdAlreadyExpanded -
 //
-extern bool swldAlreadyExpanded(const char* value);
+extern bool corLdAlreadyExpanded(const char* value);
 
 
 
@@ -122,18 +122,18 @@ extern bool swldAlreadyExpanded(const char* value);
 // contextVocab - return the active @vocab string for a context (handles
 // array-of-contexts recursion). NULL if not declared.
 //
-extern const char* contextVocab(SwldContext* contextP);
+extern const char* contextVocab(CorLdContext* contextP);
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldValueObjectIs    - true if obj is a JSON-LD value object (has @value/@type)
-// swldValueObjectCheck - validate a value object's structure (@value required,
+// corLdValueObjectIs    - true if obj is a JSON-LD value object (has @value/@type)
+// corLdValueObjectCheck - validate a value object's structure (@value required,
 //                        @type optional + string, no other members). Structure
 //                        only; *detailP gets a static reason string on failure.
 //
-extern bool swldValueObjectIs(KjNode* objP);
-extern bool swldValueObjectCheck(KjNode* objP, char** detailP);
+extern bool corLdValueObjectIs(KjNode* objP);
+extern bool corLdValueObjectCheck(KjNode* objP, char** detailP);
 
 #endif

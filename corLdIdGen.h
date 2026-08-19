@@ -1,8 +1,8 @@
-#ifndef SWLD_ID_GEN_H
-#define SWLD_ID_GEN_H
+#ifndef CORLD_ID_GEN_H
+#define CORLD_ID_GEN_H
 
 //
-// FILE            swldIdGen.h
+// FILE            corLdIdGen.h
 //
 // AUTHOR          Ken Zangelin
 //
@@ -19,7 +19,7 @@
 
 // -----------------------------------------------------------------------------
 //
-// swldIdGenerate -
+// corLdIdGenerate -
 //
 // Produce a fresh context id of the shape
 //     urn:ngsi-ld:Context:<counter>-<epochSeconds>
@@ -27,6 +27,6 @@
 // counter restarts at 1 on process boot. Only uniqueness within a running
 // broker is required since the cache itself is not persisted (Phase B).
 //
-extern char* swldIdGenerate(KAlloc* kaP);
+extern char* corLdIdGenerate(KAlloc* kaP);
 
 #endif

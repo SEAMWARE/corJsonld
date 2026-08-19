@@ -17,24 +17,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-LIB_SO        = libswJsonld.so
-LIB           = libswJsonld.a
+LIB_SO        = libcorJsonld.so
+LIB           = libcorJsonld.a
 CC            = gcc
 INCLUDE       = -I..
 DFLAGS        =
 CFLAGS        = -O2 -Wall -fPIC -Wno-unused-function -fstack-protector-all $(DFLAGS) $(INCLUDE) -MMD -MP
-LIB_SOURCES   = swJsonld.c          \
-                swldInit.c          \
-                swldContextParse.c  \
-                swldExpand.c        \
-                swldCompact.c       \
-                swldExpandTree.c    \
-                swldCompactTree.c   \
-                swldPrefixExpand.c  \
-                swldCache.c         \
-                swldDownload.c      \
-                swldIdGen.c         \
-                swldUrlResolve.c
+LIB_SOURCES   = corJsonld.c          \
+                corLdInit.c          \
+                corLdContextParse.c  \
+                corLdExpand.c        \
+                corLdCompact.c       \
+                corLdExpandTree.c    \
+                corLdCompactTree.c   \
+                corLdPrefixExpand.c  \
+                corLdCache.c         \
+                corLdDownload.c      \
+                corLdIdGen.c         \
+                corLdUrlResolve.c
 
 LIB_OBJS      = $(LIB_SOURCES:c=o)
 LIB_DEPS      = $(LIB_SOURCES:c=d)

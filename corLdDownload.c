@@ -1,5 +1,5 @@
 //
-// FILE            swldDownload.c
+// FILE            corLdDownload.c
 //
 // AUTHOR          Ken Zangelin
 //
@@ -17,14 +17,14 @@
 #include "kjson/kjParse.h"                           // kjParse
 #include "kjson/kjLookup.h"                          // kjLookup
 #include "kjson/kjBufferCreate.h"                    // kjBufferCreate
-#include "swJsonld/SwldContext.h"                     // SwldContext
-#include "swJsonld/swldTraceLevels.h"                // SwldTDownload
-#include "swJsonld/SwldContextCache.h"               // SwldContextCache (for swldCacheGet()->kaP)
-#include "swJsonld/swldCache.h"                      // swldCacheLookup, swldCacheInsert
-#include "swJsonld/swldContextParse.h"               // swldContextFromObject, swldContextFromTree
-#include "swJsonld/swldUrlResolve.h"                 // swldUrlResolve
-#include "swJsonld/swldInit.h"                       // SwldDownloadFunction, SWLD_CORE_CONTEXT_URL
-#include "swJsonld/swldDownload.h"                   // Own interface
+#include "corJsonld/CorLdContext.h"                     // CorLdContext
+#include "corJsonld/corLdTraceLevels.h"                // CorLdTDownload
+#include "corJsonld/CorLdContextCache.h"               // CorLdContextCache (for corLdCacheGet()->kaP)
+#include "corJsonld/corLdCache.h"                      // corLdCacheLookup, corLdCacheInsert
+#include "corJsonld/corLdContextParse.h"               // corLdContextFromObject, corLdContextFromTree
+#include "corJsonld/corLdUrlResolve.h"                 // corLdUrlResolve
+#include "corJsonld/corLdInit.h"                       // CorLdDownloadFunction, CORLD_CORE_CONTEXT_URL
+#include "corJsonld/corLdDownload.h"                   // Own interface
 
 
 
@@ -43,8 +43,8 @@ static bool isOlderNgsildCoreUrl(const char* url)
     return false;
 
   // The broker's configured core runs through the normal path (it gets
-  // coreContextRewriteToShort applied at swldInit time).
-  if (strcmp(url, SWLD_CORE_CONTEXT_URL) == 0)
+  // coreContextRewriteToShort applied at corLdInit time).
+  if (strcmp(url, CORLD_CORE_CONTEXT_URL) == 0)
     return false;
 
   // Canonical etsi.org core URLs accepted as the older-core no-op:
@@ -85,18 +85,18 @@ static bool isOlderNgsildCoreUrl(const char* url)
 
 // -----------------------------------------------------------------------------
 //
-// swldIsCoreContextUrl - see header.
+// corLdIsCoreContextUrl - see header.
 //
-bool swldIsCoreContextUrl(const char* url)
+bool corLdIsCoreContextUrl(const char* url)
 {
   if (url == NULL)
     return false;
 
-  SwldContext* coreP = swldCoreContext();
+  CorLdContext* coreP = corLdCoreContext();
   if (coreP != NULL && coreP->url != NULL && strcmp(url, coreP->url) == 0)
     return true;
 
-  if (strcmp(url, SWLD_CORE_CONTEXT_URL) == 0)
+  if (strcmp(url, CORLD_CORE_CONTEXT_URL) == 0)
     return true;
 
   return isOlderNgsildCoreUrl(url);
@@ -106,47 +106,47 @@ bool swldIsCoreContextUrl(const char* url)
 
 // -----------------------------------------------------------------------------
 //
-// swldDownloadGet - defined in swldInit.c
+// corLdDownloadGet - defined in corLdInit.c
 //
-extern SwldDownloadFunction swldDownloadGet(void);
-extern SwldErrorFunction    swldErrorGet(void);
+extern CorLdDownloadFunction corLdDownloadGet(void);
+extern CorLdErrorFunction    corLdErrorGet(void);
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheDownloadingAdd/Remove/Check - defined in swldCache.c
+// corLdCacheDownloadingAdd/Remove/Check - defined in corLdCache.c
 //
-extern int  swldCacheDownloadingAdd(const char* url);
-extern void swldCacheDownloadingRemove(const char* url);
-extern bool swldCacheDownloadingCheck(const char* url);
+extern int  corLdCacheDownloadingAdd(const char* url);
+extern void corLdCacheDownloadingRemove(const char* url);
+extern bool corLdCacheDownloadingCheck(const char* url);
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldContextFromUrl -
+// corLdContextFromUrl -
 //
-SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
+CorLdContext* corLdContextFromUrl(const char* url, KAlloc* kaP)
 {
   //
   // Cached contexts need to outlive the request — each request arena gets
-  // reset/reused, so storing SwldContext pointers that reference request-
+  // reset/reused, so storing CorLdContext pointers that reference request-
   // scoped memory leaves the cache with dangling fields. Use the
   // process-lifetime cache allocator for anything that will be inserted.
   // The caller's kaP is still used locally to build the parse tree (freed
   // when the arena resets; we only need it long enough to populate the
-  // SwldContext).
+  // CorLdContext).
   //
-  extern SwldContextCache* swldCacheGet(void);
-  KAlloc* storeP = swldCacheGet()->kaP;
+  extern CorLdContextCache* corLdCacheGet(void);
+  KAlloc* storeP = corLdCacheGet()->kaP;
   if (storeP == NULL)
     storeP = kaP;
 
   //
   // Step 1: Check cache
   //
-  SwldContext* contextP = swldCacheLookup(url);
+  CorLdContext* contextP = corLdCacheLookup(url);
 
   if (contextP != NULL)
     return contextP;
@@ -156,28 +156,28 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   // download. The broker runs its own embedded core; older variants
   // would otherwise fight it for ownership of "value" / "object" / etc.
   // and break the canonical short-form invariant. Insert a stub
-  // SwldContext flagged as `ignored`, with no body — `GET
+  // CorLdContext flagged as `ignored`, with no body — `GET
   // /jsonldContexts/{id}` will still find it (the URL is what
   // identifies it), expansion / compaction skip it.
   //
   if (isOlderNgsildCoreUrl(url))
   {
-    contextP        = (SwldContext*) kaAlloc(storeP, sizeof(SwldContext));
+    contextP        = (CorLdContext*) kaAlloc(storeP, sizeof(CorLdContext));
     if (contextP == NULL)
       return NULL;
-    memset(contextP, 0, sizeof(SwldContext));
+    memset(contextP, 0, sizeof(CorLdContext));
     contextP->url     = kaStrdup(storeP, url);
     contextP->id      = contextP->url;
-    contextP->kind    = SwldKindImplicit;
+    contextP->kind    = CorLdKindImplicit;
     contextP->ignored = true;
-    swldCacheInsert(contextP);
+    corLdCacheInsert(contextP);
     return contextP;
   }
 
   //
   // Step 2: Check if another thread is downloading this URL
   //
-  int downloadState = swldCacheDownloadingAdd(url);
+  int downloadState = corLdCacheDownloadingAdd(url);
 
   //
   // A cyclic @context - this very thread is already downloading this URL, and has
@@ -186,7 +186,7 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   // now asking. Waiting anyway costs the full deadline (three seconds of a request
   // thread) and then fails just the same.
   //
-  if (downloadState == SWLD_DOWNLOAD_CYCLE)
+  if (downloadState == CORLD_DOWNLOAD_CYCLE)
   {
     //
     // Reported as 400 and not as "could not be retrieved": this @context WAS
@@ -196,7 +196,7 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
     // 'loading remote context failed'), and only one of the two answers tells
     // the client something it can act on.
     //
-    SwldErrorFunction errorFn = swldErrorGet();
+    CorLdErrorFunction errorFn = corLdErrorGet();
 
     if (errorFn != NULL)
       errorFn(400, "Cyclic @context", url);
@@ -204,7 +204,7 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
     return NULL;
   }
 
-  if (downloadState == SWLD_DOWNLOAD_OTHER)
+  if (downloadState == CORLD_DOWNLOAD_OTHER)
   {
     //
     // Another thread is downloading it - poll the cache until it lands.
@@ -213,7 +213,7 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
     {
       usleep(20000);  // 20ms
 
-      contextP = swldCacheLookup(url);
+      contextP = corLdCacheLookup(url);
       if (contextP != NULL)
         return contextP;
     }
@@ -224,11 +224,11 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   //
   // Step 3: Download via callback
   //
-  SwldDownloadFunction downloadFn = swldDownloadGet();
+  CorLdDownloadFunction downloadFn = corLdDownloadGet();
 
   if (downloadFn == NULL)
   {
-    swldCacheDownloadingRemove(url);
+    corLdCacheDownloadingRemove(url);
     return NULL;
   }
 
@@ -239,7 +239,7 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   {
     if (body != NULL)
       free(body);
-    swldCacheDownloadingRemove(url);
+    corLdCacheDownloadingRemove(url);
     return NULL;
   }
 
@@ -253,7 +253,7 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   //
   // Step 4: Parse the JSON body
   //
-  // The parse tree is only needed while we build the SwldContext; the
+  // The parse tree is only needed while we build the CorLdContext; the
   // caller's kaP (request arena) is fine for that.
   //
   Kjson  kjson;
@@ -264,7 +264,7 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   if (responseP == NULL)
   {
     free(body);
-    swldCacheDownloadingRemove(url);
+    corLdCacheDownloadingRemove(url);
     return NULL;
   }
 
@@ -276,7 +276,7 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
   if (atContextP == NULL)
   {
     free(body);
-    swldCacheDownloadingRemove(url);
+    corLdCacheDownloadingRemove(url);
     return NULL;
   }
 
@@ -287,11 +287,11 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
 
   if (atContextP->type == KjObject)
   {
-    contextP = swldContextFromObject(atContextP, storeP, url);
+    contextP = corLdContextFromObject(atContextP, storeP, url);
   }
   else if (atContextP->type == KjArray)
   {
-    contextP = swldContextFromTree(atContextP, storeP, url);
+    contextP = corLdContextFromTree(atContextP, storeP, url);
 
     if (contextP != NULL)
       contextP->url = kaStrdup(storeP, url);
@@ -301,16 +301,16 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
     //
     // Redirect: @context is a URL string - follow it
     //
-    swldCacheDownloadingRemove(url);
+    corLdCacheDownloadingRemove(url);
 
     //
     // The string is an IRI reference and may be relative - it resolves against the URL this very
     // @context was downloaded from
     //
-    const char* redirectUrl = swldUrlResolve(url, atContextP->value.s, kaP);
+    const char* redirectUrl = corLdUrlResolve(url, atContextP->value.s, kaP);
 
     free(body);
-    return swldContextFromUrl(redirectUrl, kaP);
+    return corLdContextFromUrl(redirectUrl, kaP);
   }
 
   //
@@ -330,12 +330,12 @@ SwldContext* swldContextFromUrl(const char* url, KAlloc* kaP)
     if (contextP->body == NULL)
       contextP->body = bodyCopy;
 
-    contextP->kind = SwldKindCached;
+    contextP->kind = CorLdKindCached;
 
-    swldCacheInsert(contextP);
+    corLdCacheInsert(contextP);
   }
 
   free(body);
-  swldCacheDownloadingRemove(url);
+  corLdCacheDownloadingRemove(url);
   return contextP;
 }

@@ -1,58 +1,58 @@
 //
-// FILE            swldCache.h
+// FILE            corLdCache.h
 //
 // AUTHOR          Ken Zangelin
 //
 // Copyright 2026 Seamware
 //
-#ifndef SWLD_CACHE_H
-#define SWLD_CACHE_H
+#ifndef CORLD_CACHE_H
+#define CORLD_CACHE_H
 
 #include <stdbool.h>                                 // bool
 
 #include "kalloc/KAlloc.h"                            // KAlloc
-#include "swJsonld/SwldContext.h"                     // SwldContext
+#include "corJsonld/CorLdContext.h"                     // CorLdContext
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheLookup -
+// corLdCacheLookup -
 //
-extern SwldContext* swldCacheLookup(const char* url);
+extern CorLdContext* corLdCacheLookup(const char* url);
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheInsert -
+// corLdCacheInsert -
 //
-extern void swldCacheInsert(SwldContext* contextP);
+extern void corLdCacheInsert(CorLdContext* contextP);
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheRemove - detach an entry by id or url (returns it, or NULL).
+// corLdCacheRemove - detach an entry by id or url (returns it, or NULL).
 //
-extern SwldContext* swldCacheRemove(const char* idOrUrl);
+extern CorLdContext* corLdCacheRemove(const char* idOrUrl);
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheReapVolatile - drop volatile contexts past expiresAt (returns count).
+// corLdCacheReapVolatile - drop volatile contexts past expiresAt (returns count).
 //
-extern int swldCacheReapVolatile(double now);
+extern int corLdCacheReapVolatile(double now);
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheSnapshot - thread-safe snapshot of current cache entries.
+// corLdCacheSnapshot - thread-safe snapshot of current cache entries.
 //
-// Allocates an array of (SwldContext*) pointers in allocP, in cache insertion
-// order (head-first). The SwldContext objects themselves are not copied —
+// Allocates an array of (CorLdContext*) pointers in allocP, in cache insertion
+// order (head-first). The CorLdContext objects themselves are not copied —
 // callers must not mutate them. Returned pointers remain valid as long as
 // the cache does not evict them (LRU eviction is possible if the cache fills
 // up during a long response serialization). For short-lived GET handling
@@ -62,6 +62,6 @@ extern int swldCacheReapVolatile(double now);
 // *arrPP is set to the array; *nP is set to the count. Both are zero on
 // empty cache.
 //
-extern void swldCacheSnapshot(KAlloc* allocP, SwldContext*** arrPP, int* nP);
+extern void corLdCacheSnapshot(KAlloc* allocP, CorLdContext*** arrPP, int* nP);
 
 #endif

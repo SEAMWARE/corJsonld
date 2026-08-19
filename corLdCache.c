@@ -1,5 +1,5 @@
 //
-// FILE            swldCache.c
+// FILE            corLdCache.c
 //
 // AUTHOR          Ken Zangelin
 //
@@ -12,17 +12,17 @@
 #include "kalloc/KAlloc.h"                            // KAlloc, kaAlloc
 #include "kalloc/kaAlloc.h"                           // kaAlloc
 
-#include "swJsonld/SwldContextCache.h"               // SwldContextCache
-#include "swJsonld/swldTraceLevels.h"                // SwldTCache
-#include "swJsonld/swldCache.h"                      // Own interface
+#include "corJsonld/CorLdContextCache.h"               // CorLdContextCache
+#include "corJsonld/corLdTraceLevels.h"                // CorLdTCache
+#include "corJsonld/corLdCache.h"                      // Own interface
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheGet - defined in swldInit.c
+// corLdCacheGet - defined in corLdInit.c
 //
-extern SwldContextCache* swldCacheGet(void);
+extern CorLdContextCache* corLdCacheGet(void);
 
 
 
@@ -64,18 +64,18 @@ static bool idMatch(const char* a, const char* b)
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheLookup - lookup by identifier.
+// corLdCacheLookup - lookup by identifier.
 //
 // For Implicit / Cached contexts the id equals the URL. For Hosted contexts
 // the id is broker-assigned. All callers use the same entry point.
 //
-SwldContext* swldCacheLookup(const char* idOrUrl)
+CorLdContext* corLdCacheLookup(const char* idOrUrl)
 {
-  SwldContextCache* cacheP = swldCacheGet();
+  CorLdContextCache* cacheP = corLdCacheGet();
 
   pthread_mutex_lock(&cacheP->mutex);
 
-  SwldContext* contextP = cacheP->first;
+  CorLdContext* contextP = cacheP->first;
 
   while (contextP != NULL)
   {
@@ -97,18 +97,18 @@ SwldContext* swldCacheLookup(const char* idOrUrl)
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheInsert -
+// corLdCacheInsert -
 //
 // Hosted contexts have no URL (only a broker-assigned id); downloaded ones
 // have both and by convention id == url. Either key is acceptable so long as
 // at least one is set.
 //
-void swldCacheInsert(SwldContext* contextP)
+void corLdCacheInsert(CorLdContext* contextP)
 {
   if (contextP == NULL || (contextP->url == NULL && contextP->id == NULL))
     return;
 
-  SwldContextCache* cacheP = swldCacheGet();
+  CorLdContextCache* cacheP = corLdCacheGet();
 
   pthread_mutex_lock(&cacheP->mutex);
 
@@ -117,7 +117,7 @@ void swldCacheInsert(SwldContext* contextP)
   //
   const char* key = (contextP->id != NULL) ? contextP->id : contextP->url;
 
-  SwldContext* existingP = cacheP->first;
+  CorLdContext* existingP = cacheP->first;
 
   while (existingP != NULL)
   {
@@ -135,10 +135,10 @@ void swldCacheInsert(SwldContext* contextP)
   //
   if (cacheP->count >= cacheP->maxEntries)
   {
-    SwldContext*  lruP     = cacheP->first;
-    SwldContext*  lruPrevP = NULL;
-    SwldContext*  prevP    = NULL;
-    SwldContext*  nodeP    = cacheP->first;
+    CorLdContext*  lruP     = cacheP->first;
+    CorLdContext*  lruPrevP = NULL;
+    CorLdContext*  prevP    = NULL;
+    CorLdContext*  nodeP    = cacheP->first;
 
     while (nodeP != NULL)
     {
@@ -176,25 +176,25 @@ void swldCacheInsert(SwldContext* contextP)
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheRemove - detach an entry from the cache by id or url.
+// corLdCacheRemove - detach an entry from the cache by id or url.
 //
-// Returns the detached SwldContext, or NULL if not found. The caller owns
+// Returns the detached CorLdContext, or NULL if not found. The caller owns
 // the returned entry — the cache will not touch it again. Because
-// SwldContexts live in the cache's long-lived allocator and that allocator
+// CorLdContexts live in the cache's long-lived allocator and that allocator
 // has no per-object free, we don't free memory here; the caller can reuse
 // or abandon it (small leak, bounded by number of DELETEs per process).
 //
-SwldContext* swldCacheRemove(const char* idOrUrl)
+CorLdContext* corLdCacheRemove(const char* idOrUrl)
 {
   if (idOrUrl == NULL)
     return NULL;
 
-  SwldContextCache* cacheP = swldCacheGet();
+  CorLdContextCache* cacheP = corLdCacheGet();
 
   pthread_mutex_lock(&cacheP->mutex);
 
-  SwldContext*  prevP = NULL;
-  SwldContext*  p     = cacheP->first;
+  CorLdContext*  prevP = NULL;
+  CorLdContext*  p     = cacheP->first;
 
   while (p != NULL)
   {
@@ -224,29 +224,29 @@ SwldContext* swldCacheRemove(const char* idOrUrl)
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheReapVolatile - drop volatile contexts whose expiresAt has passed.
+// corLdCacheReapVolatile - drop volatile contexts whose expiresAt has passed.
 //
 // Volatile contexts (broker-minted, one-shot Link targets) are normally
 // removed on their first GET. This is the backstop for the ones nobody ever
 // fetched: walk the list under the lock and unlink any volatile entry past
-// its deadline. Like swldCacheRemove, no per-object free (cache allocator).
+// its deadline. Like corLdCacheRemove, no per-object free (cache allocator).
 // Returns the number reaped.
 //
-int swldCacheReapVolatile(double now)
+int corLdCacheReapVolatile(double now)
 {
-  SwldContextCache* cacheP = swldCacheGet();
+  CorLdContextCache* cacheP = corLdCacheGet();
   int               reaped = 0;
 
   pthread_mutex_lock(&cacheP->mutex);
 
-  SwldContext* prevP = NULL;
-  SwldContext* p     = cacheP->first;
+  CorLdContext* prevP = NULL;
+  CorLdContext* p     = cacheP->first;
 
   while (p != NULL)
   {
     if (p->volatileCtx && p->expiresAt != 0 && p->expiresAt <= now)
     {
-      SwldContext* deadP = p;
+      CorLdContext* deadP = p;
 
       if (prevP != NULL)
         prevP->next = p->next;
@@ -272,11 +272,11 @@ int swldCacheReapVolatile(double now)
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheSnapshot -
+// corLdCacheSnapshot -
 //
-void swldCacheSnapshot(KAlloc* allocP, SwldContext*** arrPP, int* nP)
+void corLdCacheSnapshot(KAlloc* allocP, CorLdContext*** arrPP, int* nP)
 {
-  SwldContextCache* cacheP = swldCacheGet();
+  CorLdContextCache* cacheP = corLdCacheGet();
 
   pthread_mutex_lock(&cacheP->mutex);
 
@@ -290,7 +290,7 @@ void swldCacheSnapshot(KAlloc* allocP, SwldContext*** arrPP, int* nP)
     return;
   }
 
-  SwldContext** arr = (SwldContext**) kaAlloc(allocP, n * sizeof(SwldContext*));
+  CorLdContext** arr = (CorLdContext**) kaAlloc(allocP, n * sizeof(CorLdContext*));
   if (arr == NULL)
   {
     *arrPP = NULL;
@@ -300,7 +300,7 @@ void swldCacheSnapshot(KAlloc* allocP, SwldContext*** arrPP, int* nP)
   }
 
   int ix = 0;
-  for (SwldContext* p = cacheP->first; p != NULL && ix < n; p = p->next)
+  for (CorLdContext* p = cacheP->first; p != NULL && ix < n; p = p->next)
     arr[ix++] = p;
 
   *arrPP = arr;
@@ -313,12 +313,12 @@ void swldCacheSnapshot(KAlloc* allocP, SwldContext*** arrPP, int* nP)
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheDownloadingAdd - claim the URL for downloading, or say who else has it
+// corLdCacheDownloadingAdd - claim the URL for downloading, or say who else has it
 //
 // Returns:
-//   SWLD_DOWNLOAD_MINE    - nobody was downloading it; the caller downloads it
-//   SWLD_DOWNLOAD_OTHER   - another thread is downloading it; the caller waits
-//   SWLD_DOWNLOAD_CYCLE   - THIS thread is already downloading it: the @context
+//   CORLD_DOWNLOAD_MINE    - nobody was downloading it; the caller downloads it
+//   CORLD_DOWNLOAD_OTHER   - another thread is downloading it; the caller waits
+//   CORLD_DOWNLOAD_CYCLE   - THIS thread is already downloading it: the @context
 //                           references itself, directly or through a chain, and
 //                           the download that would end the wait is the very call
 //                           that is now asking. Waiting would burn the full
@@ -327,9 +327,9 @@ void swldCacheSnapshot(KAlloc* allocP, SwldContext*** arrPP, int* nP)
 // The lookup and the add are one critical section on purpose: two threads that
 // both looked first and then added would both download.
 //
-int swldCacheDownloadingAdd(const char* url)
+int corLdCacheDownloadingAdd(const char* url)
 {
-  SwldContextCache* cacheP = swldCacheGet();
+  CorLdContextCache* cacheP = corLdCacheGet();
   pthread_t         me     = pthread_self();
 
   pthread_mutex_lock(&cacheP->mutex);
@@ -338,7 +338,7 @@ int swldCacheDownloadingAdd(const char* url)
   {
     if (strcmp(cacheP->downloading[ix], url) == 0)
     {
-      int result = (pthread_equal(cacheP->downloadOwner[ix], me) != 0)? SWLD_DOWNLOAD_CYCLE : SWLD_DOWNLOAD_OTHER;
+      int result = (pthread_equal(cacheP->downloadOwner[ix], me) != 0)? CORLD_DOWNLOAD_CYCLE : CORLD_DOWNLOAD_OTHER;
 
       pthread_mutex_unlock(&cacheP->mutex);
       return result;
@@ -346,12 +346,12 @@ int swldCacheDownloadingAdd(const char* url)
   }
 
   //
-  // A full list means more than SWLD_MAX_DOWNLOADING downloads are in flight at
+  // A full list means more than CORLD_MAX_DOWNLOADING downloads are in flight at
   // once. The caller is told to go ahead: an untracked download costs at worst a
   // duplicate fetch, while answering "somebody else has it" would make it wait
   // for a download nobody is doing.
   //
-  if (cacheP->downloadCount < SWLD_MAX_DOWNLOADING)
+  if (cacheP->downloadCount < CORLD_MAX_DOWNLOADING)
   {
     cacheP->downloading[cacheP->downloadCount]   = (char*) url;
     cacheP->downloadOwner[cacheP->downloadCount] = me;
@@ -359,18 +359,18 @@ int swldCacheDownloadingAdd(const char* url)
   }
 
   pthread_mutex_unlock(&cacheP->mutex);
-  return SWLD_DOWNLOAD_MINE;
+  return CORLD_DOWNLOAD_MINE;
 }
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheDownloadingRemove -
+// corLdCacheDownloadingRemove -
 //
-void swldCacheDownloadingRemove(const char* url)
+void corLdCacheDownloadingRemove(const char* url)
 {
-  SwldContextCache* cacheP = swldCacheGet();
+  CorLdContextCache* cacheP = corLdCacheGet();
 
   pthread_mutex_lock(&cacheP->mutex);
 
@@ -401,11 +401,11 @@ void swldCacheDownloadingRemove(const char* url)
 
 // -----------------------------------------------------------------------------
 //
-// swldCacheDownloadingCheck - returns true if the URL is being downloaded
+// corLdCacheDownloadingCheck - returns true if the URL is being downloaded
 //
-bool swldCacheDownloadingCheck(const char* url)
+bool corLdCacheDownloadingCheck(const char* url)
 {
-  SwldContextCache* cacheP = swldCacheGet();
+  CorLdContextCache* cacheP = corLdCacheGet();
 
   pthread_mutex_lock(&cacheP->mutex);
 

@@ -1,5 +1,5 @@
 //
-// FILE            swldIdGen.c
+// FILE            corLdIdGen.c
 //
 // AUTHOR          Ken Zangelin
 //
@@ -12,7 +12,7 @@
 #include "kalloc/KAlloc.h"                           // KAlloc
 #include "kalloc/kaAlloc.h"                          // kaAlloc
 
-#include "swJsonld/swldIdGen.h"                      // Own interface
+#include "corJsonld/corLdIdGen.h"                      // Own interface
 
 
 
@@ -29,9 +29,9 @@ static unsigned long    idCounter = 0;
 
 // -----------------------------------------------------------------------------
 //
-// swldIdGenerate -
+// corLdIdGenerate -
 //
-char* swldIdGenerate(KAlloc* kaP)
+char* corLdIdGenerate(KAlloc* kaP)
 {
   pthread_mutex_lock(&idMutex);
   unsigned long n = ++idCounter;

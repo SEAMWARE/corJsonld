@@ -1,4 +1,4 @@
-# swJsonld — JSON-LD Context Library
+# corJsonld — JSON-LD Context Library
 
 A JSON-LD context-processing library for C: term expansion, IRI compaction,
 prefix handling, `@vocab` / `@container` support, whole-tree expand/compact, and a
@@ -35,76 +35,76 @@ standalone.
 The umbrella header pulls in everything:
 
 ```c
-#include "swJsonld/swJsonld.h"
+#include "corJsonld/corJsonld.h"
 ```
 
 ### Types
 
 ```c
-// A single term mapping (see SwldItem.h)
-typedef struct SwldItem {
+// A single term mapping (see CorLdItem.h)
+typedef struct CorLdItem {
   char*          name;       // short name, e.g. "temperature"
   char*          id;         // expanded IRI
   char*          type;       // "@id", "@vocab", "DateTime", … or NULL
-  SwldContainer  container;  // parsed @container (SwldContainerNone if absent)
+  CorLdContainer  container;  // parsed @container (CorLdContainerNone if absent)
   unsigned char  flags;      // KJF_* classification bits
-} SwldItem;
+} CorLdItem;
 
-// A parsed context (see SwldContext.h)
-typedef struct SwldContext {
+// A parsed context (see CorLdContext.h)
+typedef struct CorLdContext {
   char*               url;        // URL of this context (NULL for inline)
   char*               id;         // identifier (URL or broker-generated)
   char*               body;       // raw JSON body as received (may be NULL)
-  SwldContextKind     kind;       // SwldKindImplicit | SwldKindCached | SwldKindHosted
-  KHashTable*         nameHT;     // name -> SwldItem  (expansion)
-  KHashTable*         valueHT;    // IRI  -> SwldItem  (compaction)
+  CorLdContextKind     kind;       // CorLdKindImplicit | CorLdKindCached | CorLdKindHosted
+  KHashTable*         nameHT;     // name -> CorLdItem  (expansion)
+  KHashTable*         valueHT;    // IRI  -> CorLdItem  (compaction)
   char*               vocab;      // @vocab value, or NULL
-  struct SwldContext** contextV;  // child contexts (for arrays)
+  struct CorLdContext** contextV;  // child contexts (for arrays)
   int                 contexts;   // child-context count
   bool                isArray;    // true = array of child contexts
   // … cache bookkeeping (kind flags, volatile/expiry, timestamps, list linkage)
-} SwldContext;
+} CorLdContext;
 
 // Download callback: return a malloc'd body, set *statusCodeP
-typedef char* (*SwldDownloadFunction)(const char* url, int* statusCodeP);
+typedef char* (*CorLdDownloadFunction)(const char* url, int* statusCodeP);
 ```
 
 `KAlloc`, `KjNode`, `KHashTable` and `Kjson` come from the k-libs (`kalloc`,
-`kjson`, `khash`). swJsonld allocates onto a caller-provided `KAlloc` arena — it
+`kjson`, `khash`). corJsonld allocates onto a caller-provided `KAlloc` arena — it
 does not own request-scoped memory.
 
 ### Lifecycle
 
 ```c
-int             swldInit(KAlloc* kaP, const char* coreContextUrl, SwldDownloadFunction downloadFn);
-void            swldCleanup(void);
-SwldContext*    swldCoreContext(void);
+int             corLdInit(KAlloc* kaP, const char* coreContextUrl, CorLdDownloadFunction downloadFn);
+void            corLdCleanup(void);
+CorLdContext*    corLdCoreContext(void);
 ```
 
 Initialize once at startup. Pass `NULL` for `coreContextUrl` to use the embedded
 NGSI-LD core context; pass `NULL` for `downloadFn` if only inline contexts are
-needed. `swldCoreContext()` returns the loaded core.
+needed. `corLdCoreContext()` returns the loaded core.
 
 ### Parsing contexts
 
 ```c
-SwldContext*    swldContextFromTree(KjNode* contextNode, KAlloc* kaP);
-SwldContext*    swldContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* url);
-SwldContext*    swldContextFromUrl(const char* url, KAlloc* kaP);   // uses cache + download callback
+CorLdContext*    corLdContextFromTree(KjNode* contextNode, KAlloc* kaP);
+CorLdContext*    corLdContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* url);
+CorLdContext*    corLdContextFromUrl(const char* url, KAlloc* kaP);   // uses cache + download callback
 ```
 
-`swldContextFromTree` accepts the value of a `@context` (string, object, or array);
-`swldContextFromObject` parses a single context object; `swldContextFromUrl`
+`corLdContextFromTree` accepts the value of a `@context` (string, object, or array);
+`corLdContextFromObject` parses a single context object; `corLdContextFromUrl`
 downloads (or cache-hits) a remote context.
 
 ### Expansion / compaction
 
 ```c
-char*           swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP,
-                           SwldItem** itemPP, bool* coreContextP);
-const char*     swldCompact(SwldContext* contextP, const char* iri);
-char*           swldPrefixExpand(SwldContext* contextP, const char* name, KAlloc* kaP);
-bool            swldAlreadyExpanded(const char* value);   // true if "urn:"/"http://"/"https://"
+char*           corLdExpand(CorLdContext* contextP, const char* name, KAlloc* kaP,
+                           CorLdItem** itemPP, bool* coreContextP);
+const char*     corLdCompact(CorLdContext* contextP, const char* iri);
+char*           corLdPrefixExpand(CorLdContext* contextP, const char* name, KAlloc* kaP);
+bool            corLdAlreadyExpanded(const char* value);   // true if "urn:"/"http://"/"https://"
 ```
 
 Expansion lookup chain: already-expanded → `@keyword` → `prefix:suffix` → user
@@ -114,9 +114,9 @@ then reverse lookup in the user context, then the core.
 ### Whole-tree operations
 
 ```c
-SwldContext*    swldExpandTree(KjNode* treeP, SwldContext* userContextP, KAlloc* kaP);
-void            swldCompactTree(KjNode* treeP);                       // against the core context
-void            swldCompactTreeWith(KjNode* treeP, SwldContext* ctxP); // against a specific context
+CorLdContext*    corLdExpandTree(KjNode* treeP, CorLdContext* userContextP, KAlloc* kaP);
+void            corLdCompactTree(KjNode* treeP);                       // against the core context
+void            corLdCompactTreeWith(KjNode* treeP, CorLdContext* ctxP); // against a specific context
 ```
 
 Expand or compact every term in a parsed JSON tree in a single pass — the common
@@ -126,11 +126,11 @@ case for an NGSI-LD payload going in (`expand`) or a response going out
 ### Cache
 
 ```c
-SwldContext*    swldCacheLookup(const char* url);
-void            swldCacheInsert(SwldContext* contextP);
-SwldContext*    swldCacheRemove(const char* idOrUrl);
-int             swldCacheReapVolatile(double now);        // drop expired volatile contexts
-void            swldCacheSnapshot(KAlloc* allocP, SwldContext*** arrPP, int* nP);
+CorLdContext*    corLdCacheLookup(const char* url);
+void            corLdCacheInsert(CorLdContext* contextP);
+CorLdContext*    corLdCacheRemove(const char* idOrUrl);
+int             corLdCacheReapVolatile(double now);        // drop expired volatile contexts
+void            corLdCacheSnapshot(KAlloc* allocP, CorLdContext*** arrPP, int* nP);
 ```
 
 Thread-safe (mutex-protected). LRU eviction when full. Volatile contexts (minted so
@@ -143,7 +143,7 @@ reaped at `expiresAt`.
 #include "kalloc/kalloc.h"          // KAlloc, kaBufferInit
 #include "kjson/kjBufferCreate.h"   // Kjson, kjBufferCreate
 #include "kjson/kjParse.h"          // kjParse
-#include "swJsonld/swJsonld.h"
+#include "corJsonld/corJsonld.h"
 
 // User-provided download function (e.g. via libcurl) — return a malloc'd body.
 static char* myDownload(const char* url, int* statusCodeP)
@@ -161,7 +161,7 @@ int main(void)
   kaBufferInit(&ka, buf, sizeof(buf), 65536, NULL, "jsonld");
 
   // 2. Init the library (NULL coreContextUrl → embedded NGSI-LD core)
-  swldInit(&ka, NULL, myDownload);
+  corLdInit(&ka, NULL, myDownload);
 
   // 3. Parse an inline context
   Kjson  kjson;
@@ -169,15 +169,15 @@ int main(void)
   char   json[] = "{ \"@context\": { \"temperature\": \"https://example.org/temperature\" } }";
   KjNode* tree  = kjParse(kjP, json);
 
-  SwldContext* ctxP = swldContextFromTree(tree, &ka);
+  CorLdContext* ctxP = corLdContextFromTree(tree, &ka);
 
   // 4. Expand / compact
-  char*       iri  = swldExpand(ctxP, "temperature", &ka, NULL, NULL);
+  char*       iri  = corLdExpand(ctxP, "temperature", &ka, NULL, NULL);
   // iri  == "https://example.org/temperature"
-  const char* name = swldCompact(ctxP, "https://example.org/temperature");
+  const char* name = corLdCompact(ctxP, "https://example.org/temperature");
   // name == "temperature"
 
-  swldCleanup();
+  corLdCleanup();
   return 0;
 }
 ```
@@ -185,12 +185,12 @@ int main(void)
 ## Building
 
 ```bash
-make            # build libswJsonld.a (+ .so)
+make            # build libcorJsonld.a (+ .so)
 make ci         # clean + install
 make di         # debug + install
 ```
 
-The library links statically into its consumers as `libswJsonld.a`. Sibling
+The library links statically into its consumers as `libcorJsonld.a`. Sibling
 k-lib repos must be present (the build references `../<lib>/lib<lib>.a`).
 
 ## Dependencies

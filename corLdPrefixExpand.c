@@ -1,5 +1,5 @@
 //
-// FILE            swldPrefixExpand.c
+// FILE            corLdPrefixExpand.c
 //
 // AUTHOR          Ken Zangelin
 //
@@ -9,18 +9,18 @@
 
 #include "kalloc/kaAlloc.h"                          // kaAlloc
 #include "khash/khash.h"                             // khashItemLookup
-#include "swJsonld/SwldItem.h"                       // SwldItem
-#include "swJsonld/SwldContext.h"                     // SwldContext
-#include "swJsonld/swldTraceLevels.h"                // SwldTPrefix
-#include "swJsonld/swldPrefixExpand.h"               // Own interface
+#include "corJsonld/CorLdItem.h"                       // CorLdItem
+#include "corJsonld/CorLdContext.h"                     // CorLdContext
+#include "corJsonld/corLdTraceLevels.h"                // CorLdTPrefix
+#include "corJsonld/corLdPrefixExpand.h"               // Own interface
 
 
 
 // -----------------------------------------------------------------------------
 //
-// swldPrefixExpand -
+// corLdPrefixExpand -
 //
-char* swldPrefixExpand(SwldContext* contextP, const char* name, KAlloc* kaP)
+char* corLdPrefixExpand(CorLdContext* contextP, const char* name, KAlloc* kaP)
 {
   if (contextP == NULL || name == NULL)
     return NULL;
@@ -64,7 +64,7 @@ char* swldPrefixExpand(SwldContext* contextP, const char* name, KAlloc* kaP)
   //
   // Lookup prefix in context (handle arrays: last-to-first)
   //
-  SwldItem* prefixItemP = NULL;
+  CorLdItem* prefixItemP = NULL;
 
   if (contextP->isArray == true)
   {
@@ -72,7 +72,7 @@ char* swldPrefixExpand(SwldContext* contextP, const char* name, KAlloc* kaP)
     {
       if (contextP->contextV[ix] != NULL && contextP->contextV[ix]->nameHT != NULL)
       {
-        prefixItemP = (SwldItem*) khashItemLookup(contextP->contextV[ix]->nameHT, prefix);
+        prefixItemP = (CorLdItem*) khashItemLookup(contextP->contextV[ix]->nameHT, prefix);
         if (prefixItemP != NULL)
           break;
       }
@@ -80,7 +80,7 @@ char* swldPrefixExpand(SwldContext* contextP, const char* name, KAlloc* kaP)
   }
   else if (contextP->nameHT != NULL)
   {
-    prefixItemP = (SwldItem*) khashItemLookup(contextP->nameHT, prefix);
+    prefixItemP = (CorLdItem*) khashItemLookup(contextP->nameHT, prefix);
   }
 
   if (prefixItemP == NULL)

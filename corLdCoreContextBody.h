@@ -1,5 +1,5 @@
 //
-// FILE            swldCoreContextBody.h
+// FILE            corLdCoreContextBody.h
 //
 // AUTHOR          Ken Zangelin
 //
@@ -8,10 +8,10 @@
 // NGSI-LD Core Context v1.9 - embedded JSON body
 // Source: https://uri.etsi.org/ngsi-ld/v1/ngsi-ld-core-context-v1.9.jsonld
 //
-#ifndef SWLD_CORE_CONTEXT_BODY_H
-#define SWLD_CORE_CONTEXT_BODY_H
+#ifndef CORLD_CORE_CONTEXT_BODY_H
+#define CORLD_CORE_CONTEXT_BODY_H
 
-static const char swldCoreContextBody[] =
+static const char corLdCoreContextBody[] =
   "{"
     "\"@context\":{"
       "\"@version\":1.1,"
@@ -229,4 +229,4 @@ static const char swldCoreContextBody[] =
     "}"
   "}";
 
-#endif  // SWLD_CORE_CONTEXT_BODY_H
+#endif  // CORLD_CORE_CONTEXT_BODY_H

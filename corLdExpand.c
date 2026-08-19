@@ -1,5 +1,5 @@
 //
-// FILE            swldExpand.c
+// FILE            corLdExpand.c
 //
 // AUTHOR          Ken Zangelin
 //
@@ -12,12 +12,12 @@
 #include "kalloc/kaStrdup.h"                         // kaStrdup
 #include "khash/khash.h"                             // khashItemLookup
 #include "kjson/KjNode.h"                            // KjNode
-#include "swJsonld/SwldItem.h"                       // SwldItem
-#include "swJsonld/SwldContext.h"                     // SwldContext
-#include "swJsonld/swldTraceLevels.h"                // SwldTExpand
-#include "swJsonld/swldPrefixExpand.h"               // swldPrefixExpand
-#include "swJsonld/swldInit.h"                       // swldCoreContext
-#include "swJsonld/swldExpand.h"                     // Own interface
+#include "corJsonld/CorLdItem.h"                       // CorLdItem
+#include "corJsonld/CorLdContext.h"                     // CorLdContext
+#include "corJsonld/corLdTraceLevels.h"                // CorLdTExpand
+#include "corJsonld/corLdPrefixExpand.h"               // corLdPrefixExpand
+#include "corJsonld/corLdInit.h"                       // corLdCoreContext
+#include "corJsonld/corLdExpand.h"                     // Own interface
 
 
 
@@ -25,20 +25,20 @@
 //
 // vocabExpandCheck - callback for name validation before @vocab expansion
 //
-static SwldVocabExpandCheck vocabExpandCheck = NULL;
-static SwldValueCheck       valueCheck       = NULL;
+static CorLdVocabExpandCheck vocabExpandCheck = NULL;
+static CorLdValueCheck       valueCheck       = NULL;
 
-void swldSetValueCheck(SwldValueCheck fn)
+void corLdSetValueCheck(CorLdValueCheck fn)
 {
   valueCheck = fn;
 }
 
-SwldValueCheck swldGetValueCheck(void)
+CorLdValueCheck corLdGetValueCheck(void)
 {
   return valueCheck;
 }
 
-void swldSetVocabExpandCheck(SwldVocabExpandCheck fn)
+void corLdSetVocabExpandCheck(CorLdVocabExpandCheck fn)
 {
   vocabExpandCheck = fn;
 }
@@ -47,9 +47,9 @@ void swldSetVocabExpandCheck(SwldVocabExpandCheck fn)
 
 // -----------------------------------------------------------------------------
 //
-// swldAlreadyExpanded -
+// corLdAlreadyExpanded -
 //
-bool swldAlreadyExpanded(const char* value)
+bool corLdAlreadyExpanded(const char* value)
 {
   if (value == NULL)
     return false;
@@ -71,15 +71,15 @@ bool swldAlreadyExpanded(const char* value)
 //
 // contextItemLookup - lookup a term by short name (handles array contexts).
 //
-// Used internally by swldExpand and externally by swldCompactTree (which
+// Used internally by corLdExpand and externally by corLdCompactTree (which
 // needs to consult @container before recursing into a term's value).
 //
-SwldItem* contextItemLookup(SwldContext* contextP, const char* name)
+CorLdItem* contextItemLookup(CorLdContext* contextP, const char* name)
 {
   if (contextP == NULL)
     return NULL;
 
-  // Older NGSI-LD core (recognised in swldContextFromUrl) — broker's own
+  // Older NGSI-LD core (recognised in corLdContextFromUrl) — broker's own
   // core handles these terms.
   if (contextP->ignored == true)
     return NULL;
@@ -91,7 +91,7 @@ SwldItem* contextItemLookup(SwldContext* contextP, const char* name)
     //
     for (int ix = contextP->contexts - 1; ix >= 0; ix--)
     {
-      SwldItem* itemP = contextItemLookup(contextP->contextV[ix], name);
+      CorLdItem* itemP = contextItemLookup(contextP->contextV[ix], name);
 
       if (itemP != NULL)
         return itemP;
@@ -103,7 +103,7 @@ SwldItem* contextItemLookup(SwldContext* contextP, const char* name)
   if (contextP->nameHT == NULL)
     return NULL;
 
-  return (SwldItem*) khashItemLookup(contextP->nameHT, name);
+  return (CorLdItem*) khashItemLookup(contextP->nameHT, name);
 }
 
 
@@ -112,7 +112,7 @@ SwldItem* contextItemLookup(SwldContext* contextP, const char* name)
 //
 // contextVocab - get @vocab value (handles arrays)
 //
-const char* contextVocab(SwldContext* contextP)
+const char* contextVocab(CorLdContext* contextP)
 {
   if (contextP == NULL)
     return NULL;
@@ -141,9 +141,9 @@ const char* contextVocab(SwldContext* contextP)
 
 // -----------------------------------------------------------------------------
 //
-// swldExpand -
+// corLdExpand -
 //
-char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem** itemPP, bool* coreContextP)
+char* corLdExpand(CorLdContext* contextP, const char* name, KAlloc* kaP, CorLdItem** itemPP, bool* coreContextP)
 {
   if (itemPP != NULL)
     *itemPP = NULL;
@@ -157,7 +157,7 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
   //
   // Step 1: Already expanded (urn:/http:/https:/)
   //
-  if (swldAlreadyExpanded(name) == true)
+  if (corLdAlreadyExpanded(name) == true)
     return (char*) name;
 
   //
@@ -171,7 +171,7 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
   //
   if (strchr(name, ':') != NULL)
   {
-    char* expanded = swldPrefixExpand(contextP, name, kaP);
+    char* expanded = corLdPrefixExpand(contextP, name, kaP);
 
     if (expanded != NULL)
       return expanded;
@@ -179,7 +179,7 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
     //
     // Try core context prefix expansion
     //
-    expanded = swldPrefixExpand(swldCoreContext(), name, kaP);
+    expanded = corLdPrefixExpand(corLdCoreContext(), name, kaP);
     if (expanded != NULL)
     {
       if (coreContextP != NULL)
@@ -196,7 +196,7 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
   // name as id, so this step naturally produces the short form for any
   // core term.
   //
-  SwldItem* itemP = contextItemLookup(swldCoreContext(), name);
+  CorLdItem* itemP = contextItemLookup(corLdCoreContext(), name);
   if (itemP != NULL)
   {
     if (itemPP != NULL)
@@ -228,7 +228,7 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
   // used. NGSI-LD's invariant (and ours) is stronger: only the broker's
   // configured core context carries @vocab — user contexts MUST NOT — so
   // this branch is the unconditional final fallback for any short term
-  // no context defined explicitly. swldCoreVocab is set once at init
+  // no context defined explicitly. corLdCoreVocab is set once at init
   // (the broker refuses to start without it), so it's read directly
   // here — no per-call context walk.
   //
@@ -241,13 +241,13 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
     return NULL;
 
   int   nameLen  = (int) strlen(name);
-  char* expanded = (char*) kaAlloc(kaP, swldCoreVocabLen + nameLen + 1);
+  char* expanded = (char*) kaAlloc(kaP, corLdCoreVocabLen + nameLen + 1);
 
   if (expanded == NULL)
     return NULL;
 
-  memcpy(expanded, swldCoreVocab, swldCoreVocabLen);
-  memcpy(expanded + swldCoreVocabLen, name, nameLen + 1);
+  memcpy(expanded, corLdCoreVocab, corLdCoreVocabLen);
+  memcpy(expanded + corLdCoreVocabLen, name, nameLen + 1);
   return expanded;
 }
 
@@ -255,9 +255,9 @@ char* swldExpand(SwldContext* contextP, const char* name, KAlloc* kaP, SwldItem*
 
 // -----------------------------------------------------------------------------
 //
-// swldValueObjectIs - true if obj is a JSON-LD value object (has @value or @type)
+// corLdValueObjectIs - true if obj is a JSON-LD value object (has @value or @type)
 //
-bool swldValueObjectIs(KjNode* objP)
+bool corLdValueObjectIs(KjNode* objP)
 {
   if ((objP == NULL) || (objP->type != KjObject))
     return false;
@@ -277,9 +277,9 @@ bool swldValueObjectIs(KjNode* objP)
 
 // -----------------------------------------------------------------------------
 //
-// swldValueObjectCheck - validate the structure of a JSON-LD value object
+// corLdValueObjectCheck - validate the structure of a JSON-LD value object
 //
-// The caller has established that objP IS a value object (swldValueObjectIs).
+// The caller has established that objP IS a value object (corLdValueObjectIs).
 // A value object accepts only `@value` (required) and `@type` (optional, a
 // string). Any other member — plain or @-prefixed — is invalid. This is the
 // JSON-LD-level structural rule; datatype/lexical validation of the `@value`
@@ -289,7 +289,7 @@ bool swldValueObjectIs(KjNode* objP)
 //
 // On violation returns false and points *detailP at a static reason string.
 //
-bool swldValueObjectCheck(KjNode* objP, char** detailP)
+bool corLdValueObjectCheck(KjNode* objP, char** detailP)
 {
   KjNode* atValueP = NULL;
   KjNode* atTypeP  = NULL;

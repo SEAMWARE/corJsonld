@@ -1,5 +1,5 @@
 //
-// FILE            swldCompact.c
+// FILE            corLdCompact.c
 //
 // AUTHOR          Ken Zangelin
 //
@@ -9,13 +9,13 @@
 
 #include "kalloc/kaAlloc.h"                          // kaAlloc
 #include "khash/khash.h"                             // khashItemLookup, KHashListItem
-#include "swJsonld/SwldItem.h"                       // SwldItem
-#include "swJsonld/SwldContext.h"                     // SwldContext
-#include "swJsonld/swldTraceLevels.h"                // SwldTCompact
-#include "swJsonld/swldExpand.h"                     // swldAlreadyExpanded
-#include "swJsonld/swldInit.h"                       // swldCoreContext, swldCorePrefixes
-#include "swRest/swRest.h"                           // swRest.kalloc for compact-IRI alloc
-#include "swJsonld/swldCompact.h"                    // Own interface
+#include "corJsonld/CorLdItem.h"                       // CorLdItem
+#include "corJsonld/CorLdContext.h"                     // CorLdContext
+#include "corJsonld/corLdTraceLevels.h"                // CorLdTCompact
+#include "corJsonld/corLdExpand.h"                     // corLdAlreadyExpanded
+#include "corJsonld/corLdInit.h"                       // corLdCoreContext, corLdCorePrefixes
+#include "corRest/corRest.h"                           // corRest.kalloc for compact-IRI alloc
+#include "corJsonld/corLdCompact.h"                    // Own interface
 
 
 
@@ -23,7 +23,7 @@
 //
 // contextReverseLookup - lookup by IRI in valueHT (handles arrays)
 //
-static SwldItem* contextReverseLookup(SwldContext* contextP, const char* iri)
+static CorLdItem* contextReverseLookup(CorLdContext* contextP, const char* iri)
 {
   if (contextP == NULL)
     return NULL;
@@ -35,7 +35,7 @@ static SwldItem* contextReverseLookup(SwldContext* contextP, const char* iri)
   {
     for (int ix = contextP->contexts - 1; ix >= 0; ix--)
     {
-      SwldItem* itemP = contextReverseLookup(contextP->contextV[ix], iri);
+      CorLdItem* itemP = contextReverseLookup(contextP->contextV[ix], iri);
 
       if (itemP != NULL)
         return itemP;
@@ -47,7 +47,7 @@ static SwldItem* contextReverseLookup(SwldContext* contextP, const char* iri)
   if (contextP->valueHT == NULL)
     return NULL;
 
-  return (SwldItem*) khashItemLookup(contextP->valueHT, iri);
+  return (CorLdItem*) khashItemLookup(contextP->valueHT, iri);
 }
 
 
@@ -56,7 +56,7 @@ static SwldItem* contextReverseLookup(SwldContext* contextP, const char* iri)
 //
 // contextVocabCompact - strip @vocab prefix if it matches
 //
-static const char* contextVocabCompact(SwldContext* contextP, const char* iri)
+static const char* contextVocabCompact(CorLdContext* contextP, const char* iri)
 {
   if (contextP == NULL)
     return NULL;
@@ -93,12 +93,12 @@ static const char* contextVocabCompact(SwldContext* contextP, const char* iri)
 // contextNameLookup - lookup by short name in nameHT (handles arrays)
 //
 // Mirror of contextReverseLookup but indexed by short name. Used by
-// swldCompact to detect a shadowing conflict: when @vocab-stripping
+// corLdCompact to detect a shadowing conflict: when @vocab-stripping
 // would produce a name that's also defined as a term mapping to a
 // different IRI, the bare name would be ambiguous on the wire — the
 // receiver would expand it back to the term's IRI, not the original.
 //
-static SwldItem* contextNameLookup(SwldContext* contextP, const char* name)
+static CorLdItem* contextNameLookup(CorLdContext* contextP, const char* name)
 {
   if (contextP == NULL || contextP->ignored == true)
     return NULL;
@@ -107,7 +107,7 @@ static SwldItem* contextNameLookup(SwldContext* contextP, const char* name)
   {
     for (int ix = contextP->contexts - 1; ix >= 0; ix--)
     {
-      SwldItem* itemP = contextNameLookup(contextP->contextV[ix], name);
+      CorLdItem* itemP = contextNameLookup(contextP->contextV[ix], name);
       if (itemP != NULL)
         return itemP;
     }
@@ -117,7 +117,7 @@ static SwldItem* contextNameLookup(SwldContext* contextP, const char* name)
   if (contextP->nameHT == NULL)
     return NULL;
 
-  return (SwldItem*) khashItemLookup(contextP->nameHT, name);
+  return (CorLdItem*) khashItemLookup(contextP->nameHT, name);
 }
 
 
@@ -140,8 +140,8 @@ static SwldItem* contextNameLookup(SwldContext* contextP, const char* name)
 // so well-known canonical forms (e.g. ngsi-ld error-type URIs) aren't
 // re-shaped on the wire.
 //
-static const char* vocabStripGuarded(SwldContext* userP,
-                                     SwldContext* fromP,
+static const char* vocabStripGuarded(CorLdContext* userP,
+                                     CorLdContext* fromP,
                                      const char*  iri,
                                      bool*        outShadowedP)
 {
@@ -151,9 +151,9 @@ static const char* vocabStripGuarded(SwldContext* userP,
   if (stripped == NULL)
     return NULL;
 
-  SwldItem* conflictP = contextNameLookup(userP, stripped);
+  CorLdItem* conflictP = contextNameLookup(userP, stripped);
   if (conflictP == NULL)
-    conflictP = contextNameLookup(swldCoreContext(), stripped);
+    conflictP = contextNameLookup(corLdCoreContext(), stripped);
   if (conflictP != NULL && conflictP->id != NULL && strcmp(conflictP->id, iri) != 0)
   {
     *outShadowedP = true;
@@ -175,11 +175,11 @@ static const char* vocabStripGuarded(SwldContext* userP,
 // to non-recursive contexts; isArray walks recursively, longest match
 // wins across the entire chain.
 //
-// Allocated in swRest.kalloc when a match is found; NULL otherwise.
+// Allocated in corRest.kalloc when a match is found; NULL otherwise.
 //
-static const char* prefixCompactScan(SwldContext* contextP,
+static const char* prefixCompactScan(CorLdContext* contextP,
                                      const char*  iri,
-                                     SwldItem**   bestPP,
+                                     CorLdItem**   bestPP,
                                      int*         bestLenP)
 {
   if (contextP == NULL || contextP->ignored == true)
@@ -200,7 +200,7 @@ static const char* prefixCompactScan(SwldContext* contextP,
     KHashListItem* lP = contextP->nameHT->array[slot];
     while (lP != NULL)
     {
-      SwldItem* itP = (SwldItem*) lP->data;
+      CorLdItem* itP = (CorLdItem*) lP->data;
       if (itP->id != NULL && itP->name != NULL && itP->name[0] != '@')
       {
         int idLen = strlen(itP->id);
@@ -227,26 +227,26 @@ static const char* prefixCompactBuild(const char* iri, const char* name, int idL
   const char* suffix = iri + idLen;
   int nameLen   = strlen(name);
   int suffixLen = strlen(suffix);
-  char* out = (char*) kaAlloc(&swRest.kalloc, nameLen + 1 + suffixLen + 1);
+  char* out = (char*) kaAlloc(&corRest.kalloc, nameLen + 1 + suffixLen + 1);
   memcpy(out, name, nameLen);
   out[nameLen] = ':';
   memcpy(out + nameLen + 1, suffix, suffixLen + 1);
   return out;
 }
 
-static const char* prefixCompact(SwldContext* contextP, const char* iri)
+static const char* prefixCompact(CorLdContext* contextP, const char* iri)
 {
   // Phase 1: scan user-context nameHT (not subject to the core-context
   // rewrite — prefix terms there still hold their full IRIs).
-  SwldItem* bestP   = NULL;
+  CorLdItem* bestP   = NULL;
   int       bestLen = 0;
   prefixCompactScan(contextP, iri, &bestP, &bestLen);
 
   // Phase 2: scan the pre-rewrite snapshot of the core context. Pick
   // longest-match between user and core combined.
   int          coreN = 0;
-  const SwldCorePrefix* coreV = swldCorePrefixes(&coreN);
-  const SwldCorePrefix* coreBest = NULL;
+  const CorLdCorePrefix* coreV = corLdCorePrefixes(&coreN);
+  const CorLdCorePrefix* coreBest = NULL;
   for (int i = 0; i < coreN; i++)
   {
     if (coreV[i].idLen > bestLen &&
@@ -270,23 +270,23 @@ static const char* prefixCompact(SwldContext* contextP, const char* iri)
 
 // -----------------------------------------------------------------------------
 //
-// swldCompact -
+// corLdCompact -
 //
-const char* swldCompact(SwldContext* contextP, const char* iri)
+const char* corLdCompact(CorLdContext* contextP, const char* iri)
 {
   //
   // Step 1: Not a full IRI - return as-is
   //
-  if (swldAlreadyExpanded(iri) == false)
+  if (corLdAlreadyExpanded(iri) == false)
     return iri;
 
-  SwldContext* coreP = swldCoreContext();
+  CorLdContext* coreP = corLdCoreContext();
 
   //
   // Step 2: Reverse lookup in user context (exact term match wins —
   // strongest binding the spec gives us)
   //
-  SwldItem* itemP = contextReverseLookup(contextP, iri);
+  CorLdItem* itemP = contextReverseLookup(contextP, iri);
   if (itemP != NULL)
     return itemP->name;
 
