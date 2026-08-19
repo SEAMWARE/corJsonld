@@ -197,11 +197,11 @@ k-lib repos must be present (the build references `../<lib>/lib<lib>.a`).
 
 Sibling k-lib repos (one `.a` each):
 
-- [`kalloc`](../kalloc) — arena allocator (`KAlloc`)
-- [`kjson`](../kjson) — JSON parsing / trees (`KjNode`, `Kjson`)
-- [`kbase`](../kbase) — core utilities
-- [`khash`](../khash) — hash tables (`KHashTable`)
-- [`klog`](../klog) — logging
-- [`ktrace`](../ktrace) — trace levels
+- [`kalloc`](https://gitlab.com/kzangeli/kalloc) — arena allocator (`KAlloc`)
+- [`kjson`](https://gitlab.com/kzangeli/kjson) — JSON parsing / trees (`KjNode`, `Kjson`)
+- [`kbase`](https://gitlab.com/kzangeli/kbase) — core utilities
+- [`khash`](https://gitlab.com/kzangeli/khash) — hash tables (`KHashTable`)
+- [`klog`](https://gitlab.com/kzangeli/klog) — logging
+- [`ktrace`](https://gitlab.com/kzangeli/ktrace) — trace levels
 
 Plus `pthread` for the cache mutex.
