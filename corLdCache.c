@@ -400,25 +400,3 @@ void corLdCacheDownloadingRemove(const char* url)
 
 
 
-// -----------------------------------------------------------------------------
-//
-// corLdCacheDownloadingCheck - returns true if the URL is being downloaded
-//
-bool corLdCacheDownloadingCheck(const char* url)
-{
-  CorLdContextCache* cacheP = corLdCacheGet();
-
-  pthread_mutex_lock(&cacheP->mutex);
-
-  for (int ix = 0; ix < cacheP->downloadCount; ix++)
-  {
-    if (strcmp(cacheP->downloading[ix], url) == 0)
-    {
-      pthread_mutex_unlock(&cacheP->mutex);
-      return true;
-    }
-  }
-
-  pthread_mutex_unlock(&cacheP->mutex);
-  return false;
-}
