@@ -116,11 +116,10 @@ extern CorLdErrorFunction    corLdErrorGet(void);
 
 // -----------------------------------------------------------------------------
 //
-// corLdCacheDownloadingAdd/Remove/Check - defined in corLdCache.c
+// corLdCacheDownloadingAdd/Remove - defined in corLdCache.c
 //
 extern int  corLdCacheDownloadingAdd(const char* url);
 extern void corLdCacheDownloadingRemove(const char* url);
-extern bool corLdCacheDownloadingCheck(const char* url);
 
 
 
