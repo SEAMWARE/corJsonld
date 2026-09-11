@@ -70,6 +70,41 @@ extern void corLdSetVocabExpandCheck(CorLdVocabExpandCheck fn);
 
 // -----------------------------------------------------------------------------
 //
+// corLdKeywordIs - is `name` one of the JSON-LD 1.1 keywords?
+//
+// The keyword list is closed (JSON-LD 1.1 § 1.7): a member name starting with
+// '@' that is not on it is not a keyword at all. JSON-LD calls such a name a
+// "keyword-like" term and drops it; NGSI-LD input is stricter, so the expander
+// hands it to the keyword-check callback instead of silently skipping it.
+//
+extern bool corLdKeywordIs(const char* name);
+
+
+
+// -----------------------------------------------------------------------------
+//
+// CorLdKeywordCheck - callback for an '@'-prefixed member name that is NOT a
+// JSON-LD keyword.
+//
+// The expander leaves every '@'-prefixed name unexpanded and does not descend
+// into its value — that is right for a real keyword and wrong for anything
+// else, whose subtree then reaches the NGSI-LD layer un-expanded and un-marked
+// (its "type"/"value" members indistinguishable from sub-attributes).
+//
+// Returns true to accept (the name is skipped as before); false to reject —
+// the callback owns the error-emission path (ldError on the broker side).
+//
+typedef bool (*CorLdKeywordCheck)(const char* name);
+
+extern void corLdSetKeywordCheck(CorLdKeywordCheck fn);
+
+// Read accessor for the lib's own expand-tree wiring.
+extern CorLdKeywordCheck corLdGetKeywordCheck(void);
+
+
+
+// -----------------------------------------------------------------------------
+//
 // CorLdValueCheck - callback to validate a term's value(s) when the term's
 // context binding declares a non-@id / non-@vocab @type (i.e. a datatype
 // like xsd:dateTime, xsd:integer, …). Invoked once per scalar value
