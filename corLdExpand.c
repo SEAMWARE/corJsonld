@@ -28,6 +28,7 @@
 //
 static CorLdVocabExpandCheck vocabExpandCheck = NULL;
 static CorLdValueCheck       valueCheck       = NULL;
+static CorLdKeywordCheck     keywordCheck     = NULL;
 
 void corLdSetValueCheck(CorLdValueCheck fn)
 {
@@ -42,6 +43,56 @@ CorLdValueCheck corLdGetValueCheck(void)
 void corLdSetVocabExpandCheck(CorLdVocabExpandCheck fn)
 {
   vocabExpandCheck = fn;
+}
+
+
+void corLdSetKeywordCheck(CorLdKeywordCheck fn)
+{
+  keywordCheck = fn;
+}
+
+CorLdKeywordCheck corLdGetKeywordCheck(void)
+{
+  return keywordCheck;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdKeywordIs -
+//
+// The complete JSON-LD 1.1 keyword list (§ 1.7 "Syntax Tokens and Keywords").
+// Grouped by second character so a non-keyword costs one switch and at most a
+// couple of strcmps - this runs once per member name of every object in every
+// request body.
+//
+bool corLdKeywordIs(const char* name)
+{
+  if ((name == NULL) || (name[0] != '@'))
+    return false;
+
+  switch (name[1])
+  {
+  case 'b':  return (strcmp(name, "@base")      == 0);
+  case 'c':  return (strcmp(name, "@container") == 0) || (strcmp(name, "@context") == 0);
+  case 'd':  return (strcmp(name, "@direction") == 0);
+  case 'g':  return (strcmp(name, "@graph")     == 0);
+  case 'i':  return (strcmp(name, "@id")        == 0) || (strcmp(name, "@import")   == 0) ||
+                    (strcmp(name, "@included")  == 0) || (strcmp(name, "@index")    == 0);
+  case 'j':  return (strcmp(name, "@json")      == 0);
+  case 'l':  return (strcmp(name, "@language")  == 0) || (strcmp(name, "@list")     == 0);
+  case 'n':  return (strcmp(name, "@nest")      == 0) || (strcmp(name, "@none")     == 0);
+  case 'p':  return (strcmp(name, "@prefix")    == 0) || (strcmp(name, "@propagate") == 0) ||
+                    (strcmp(name, "@protected") == 0);
+  case 'r':  return (strcmp(name, "@reverse")   == 0);
+  case 's':  return (strcmp(name, "@set")       == 0);
+  case 't':  return (strcmp(name, "@type")      == 0);
+  case 'v':  return (strcmp(name, "@value")     == 0) || (strcmp(name, "@version")  == 0) ||
+                    (strcmp(name, "@vocab")     == 0);
+  }
+
+  return false;
 }
 
 

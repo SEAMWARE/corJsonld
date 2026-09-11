@@ -30,16 +30,34 @@ static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, i
   if (objectP == NULL || objectP->type != KjObject)
     return;
 
+  CorLdKeywordCheck keywordCheckP = corLdGetKeywordCheck();
+
   for (KjNode* childP = objectP->value.firstChildP; childP != NULL; childP = childP->next)
   {
     if (childP->name == NULL)
       continue;
 
     //
-    // Skip @-prefixed names
+    // Skip @-prefixed names - a JSON-LD keyword is not a term, it neither
+    // expands nor carries a term subtree to descend into.
+    //
+    // But ONLY a real keyword. A name that merely looks like one ("@referredType")
+    // is not a keyword, so skipping it here left its whole subtree unexpanded and
+    // unmarked: the NGSI-LD layer then saw an attribute whose "type"/"value"
+    // members carried no KJF_ATTR_TERM bit and reified them as sub-attributes,
+    // turning a valid Property into {"type":{"type":"Property","value":"Property"}}.
+    // Hand it to the keyword-check callback so the caller can reject it.
     //
     if (childP->name[0] == '@')
+    {
+      if (corLdKeywordIs(childP->name) == false)
+      {
+        if ((keywordCheckP != NULL) && (keywordCheckP(childP->name) == false))
+          return;
+      }
+
       continue;
+    }
 
     //
     // Expand the name - but discard if it expands to an @-keyword
