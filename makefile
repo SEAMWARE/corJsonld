@@ -37,7 +37,7 @@ DFLAGS        =
 # EXTRA_CFLAGS is appended LAST, so a caller's -O0 / -Wno-error also win over the
 # -O2 / -Werror here, which is what an instrumented build needs.
 #
-CFLAGS        = -O2 -Wall -Werror -fPIC -Wno-unused-function -fstack-protector-all $(DFLAGS) $(INCLUDE) -MMD -MP $(EXTRA_CFLAGS)
+CFLAGS        = -O2 -Wall -Werror -fPIC -fstack-protector-all $(DFLAGS) $(INCLUDE) -MMD -MP $(EXTRA_CFLAGS)
 LIB_SOURCES   = corJsonld.c          \
                 corLdInit.c          \
                 corLdContextParse.c  \
