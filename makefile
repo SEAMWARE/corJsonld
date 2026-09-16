@@ -85,11 +85,11 @@ LIB_DEPS      = $(addprefix $(OBJDIR)/,$(LIB_SOURCES:.c=.d))
 #
 FLAGSTAMP    := $(OBJDIR)/.flags
 
-SO_LDFLAGS    = -L../kalloc -L../kjson -L../kbase -L../klog -L../ktrace -L../khash
-SO_LIBS       = -lkalloc -lkjson -lkbase -lklog -lktrace -lkhash -lpthread
-SO_RPATH      = -Wl,-rpath,'$$ORIGIN/../kalloc:$$ORIGIN/../kjson:$$ORIGIN/../kbase:$$ORIGIN/../klog:$$ORIGIN/../ktrace:$$ORIGIN/../khash'
+SO_LDFLAGS    = -L../kalloc -L../kjson -L../kbase -L../ktrace -L../khash
+SO_LIBS       = -lkalloc -lkjson -lkbase -lktrace -lkhash -lpthread
+SO_RPATH      = -Wl,-rpath,'$$ORIGIN/../kalloc:$$ORIGIN/../kjson:$$ORIGIN/../kbase:$$ORIGIN/../ktrace:$$ORIGIN/../khash'
 
-LIBS          = ../kalloc/libkalloc.a ../kjson/libkjson.a ../kbase/libkbase.a ../klog/libklog.a ../ktrace/libktrace.a ../khash/libkhash.a -lpthread
+LIBS          = ../kalloc/libkalloc.a ../kjson/libkjson.a ../kbase/libkbase.a ../ktrace/libktrace.a ../khash/libkhash.a -lpthread
 
 #
 # The artefacts are built per flavour and then STAGED to the repo root, where
