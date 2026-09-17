@@ -52,8 +52,13 @@ typedef struct CorLdContext
   // volatileCtx = true for a broker-minted one-shot context hosted only so
   // a Link header (response or distop forward) can reference an inline /
   // multi-element user @context by URL. Never persisted to the DB; served
-  // with Cache-Control: no-store and dropped after the first GET; reaped
-  // at expiresAt if never fetched. Skipped by GET /jsonldContexts list.
+  // with Cache-Control: no-store. NOT dropped on the first GET: the id is a
+  // content hash, so identical bodies dedup onto ONE entry that several
+  // in-flight requests may reference at once - dropping it for the first
+  // fetcher would pull it out from under the others. Retirement is the
+  // sliding-TTL reaper's job, and the TTL is refreshed on reuse; expiresAt
+  // reaps one that is never fetched at all. Skipped by GET /jsonldContexts
+  // list.
   bool                       volatileCtx;
   double                     expiresAt;   // volatile reap deadline (epoch s); 0 = never
   double                     createdAt;
