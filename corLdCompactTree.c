@@ -57,8 +57,35 @@ static void compactObject(KjNode* objectP, CorLdContext* coreP, int level)
     CorLdItem* termItemP = contextItemLookup(coreP, childP->name);
     if (termItemP == NULL)
       termItemP = contextItemLookup(corLdCoreContext(), childP->name);
+    //
+    // ... and a JsonProperty's `json`, where the spec is blunt: "Raw
+    // unexpandable JSON which shall not be interpreted as JSON-LD using the
+    // supplied @context" (TS 104-175, clause 5). We were interpreting it - a
+    // key under the core @vocab came back stripped:
+    //
+    //   in : "json": { "https://uri.etsi.org/ngsi-ld/default-context/foo": 1 }
+    //   out: "json": { "foo": 1 }
+    //
+    // ⚠️ NOT extended to VK_VALUE, although corLdExpandTree lists it and the
+    // symmetry is tempting. A Property's value reaches expansion in two shapes
+    // and only one of them is recognisable there: in NORMALIZED input the
+    // `value` key is present and the expander leaves the subtree alone, but in
+    // SIMPLIFIED input the attribute IS the value, nothing yet marks it as one,
+    // and its keys get @vocab-expanded like any other term. Compaction has to
+    // undo that, so making `value` opaque here broke simplified round-tripping
+    // (create_entity_simplified: `num` came back as
+    // `.../default-context/num`).
+    //
+    // Which leaves a real ambiguity rather than a bug: on the way out, a key
+    // that IS literally a default-context IRI is indistinguishable from a short
+    // key that was expanded on the way in. It cannot be preserved without
+    // knowing which it was, and the wire format does not say. Recorded as C4 in
+    // coraine/doc/tutorial-doubts.md; `json` is the half the spec settles.
+    //
+    int  vk         = (termItemP != NULL) ? KJF_VK_ID(termItemP->flags) : KJF_VK_NONE;
     bool opaqueKeys = (termItemP != NULL &&
-                       (termItemP->container & CORLD_CONTAINER_OPAQUE_KEYS) != 0);
+                       ((termItemP->container & CORLD_CONTAINER_OPAQUE_KEYS) != 0 ||
+                        vk == KJF_VK_JSON));
 
     //
     // For "type" fields at entity level, also compact the string value (e.g. full URI -> "Vehicle")

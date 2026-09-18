@@ -292,9 +292,17 @@ const char* corLdCompact(CorLdContext* contextP, const char* iri)
     return itemP->name;
 
   //
-  // Step 3: Reverse lookup in core context (same idea, core fallback)
+  // Step 3: Reverse lookup in the core context (same idea, core fallback)
   //
-  itemP = contextReverseLookup(coreP, iri);
+  // ⚠️ Against the PRISTINE copy, not `coreP`. This step was dead code: the
+  // working core context has had every id flattened to its own name by
+  // coreContextRewriteToShort, and valueCompare dereferences itemP->id at
+  // lookup time - so the hash found the right bucket and then compared an IRI
+  // against a short name, forever. A core IRI never compacted back.
+  //
+  CorLdContext* pristineP = corLdCorePristine();
+
+  itemP = contextReverseLookup((pristineP != NULL) ? pristineP : coreP, iri);
   if (itemP != NULL)
     return itemP->name;
 

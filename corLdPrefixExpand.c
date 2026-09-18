@@ -12,7 +12,7 @@
 #include "khash/khash.h"                             // khashItemLookup
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
-#include "corJsonld/corLdInit.h"                        // corLdCorePrefixes
+#include "corJsonld/corLdInit.h"                        // corLdCorePristine
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTPrefix
 #include "corJsonld/corLdPrefixExpand.h"               // Own interface
 
@@ -95,17 +95,14 @@ char* corLdPrefixExpand(CorLdContext* contextP, const char* name, KAlloc* kaP)
   // coreContextRewriteToShort flattens every core item's id to its name, so the
   // core prefix `ngsi-ld` no longer holds "https://uri.etsi.org/ngsi-ld/" - it
   // holds "ngsi-ld". Concatenating that with the suffix ate the colon and glued
-  // the prefix NAME to it: `ngsi-ld:Property` became `ngsi-ldProperty`, and
-  // `ngsi-ld:speed` was stored as an attribute called `ngsi-ldspeed` with a 201.
-  // Silent corruption of any compact IRI built on a core prefix, and there are
-  // two of them (ngsi-ld, geojson).
+  // the prefix NAME to it: `ngsi-ld:speed` was stored as an attribute called
+  // `ngsi-ldspeed`, with a 201 and no error.
   //
-  // corLdCorePrefixes() is the pre-rewrite snapshot, kept for precisely this
-  // reason (corLdCompact's prefix step already uses it). A real prefix IRI ends
-  // in '/', '#' or ':' - which is the snapshot's own admission test - so an id
-  // that does not is either flattened or not a prefix at all. Only a name the
-  // snapshot knows is diverted, so a user term legitimately used as a prefix is
-  // untouched.
+  // The pristine core context (corLdCorePristine) still has the real ids, so
+  // this is a plain O(1) lookup by prefix name. A real prefix IRI ends in '/',
+  // '#' or ':', so an id that does not is either flattened or not a prefix at
+  // all - and only a name the CORE defines is diverted, leaving a user term
+  // legitimately used as a prefix untouched.
   //
   const char* prefixIri = prefixItemP->id;
 
@@ -115,16 +112,14 @@ char* corLdPrefixExpand(CorLdContext* contextP, const char* name, KAlloc* kaP)
 
     if ((last != '/') && (last != '#') && (last != ':'))
     {
-      int                     coreN = 0;
-      const CorLdCorePrefix*  coreV = corLdCorePrefixes(&coreN);
+      CorLdContext* pristineP = corLdCorePristine();
 
-      for (int ix = 0; ix < coreN; ix++)
+      if ((pristineP != NULL) && (pristineP->nameHT != NULL))
       {
-        if (strcmp(coreV[ix].name, prefix) == 0)
-        {
-          prefixIri = coreV[ix].id;
-          break;
-        }
+        CorLdItem* cleanP = (CorLdItem*) khashItemLookup(pristineP->nameHT, prefix);
+
+        if ((cleanP != NULL) && (cleanP->id != NULL))
+          prefixIri = cleanP->id;
       }
     }
   }
