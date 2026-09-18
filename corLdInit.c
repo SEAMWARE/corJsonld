@@ -117,6 +117,148 @@ static void coreContextPrefixSnapshot(CorLdContext* contextP)
     }
   }
 }
+
+
+// -----------------------------------------------------------------------------
+//
+// Core-context IRI snapshot — the EXPANDED spelling of every core term
+//
+// The core context's own valueHT cannot answer this. Its keys are the IRIs, so
+// the bucket is found, but `valueCompare` dereferences `itemP->id` at LOOKUP
+// time and coreContextRewriteToShort has by then set `id = name`. Every core
+// reverse lookup therefore compares an IRI against a short name and fails —
+// which is why corLdCompact's step 3 never fires for the core context.
+//
+// So this table keeps its OWN copy of the IRI pointer, captured before the
+// rewrite, and compares against that. Same trap cannot recur: nothing here
+// reads a field the rewrite touches.
+//
+// Why it exists at all: a client may send a core term in either spelling. After
+// JSON-LD expansion `observedAt` and `https://uri.etsi.org/ngsi-ld/observedAt`
+// are the same thing (TS 104-175 § 4.3.4.2 ALLOWS the short form, it does not
+// mandate it), and coraine's canonical internal form for a core term is the
+// SHORT name. Without this, the long spelling arrived as an unknown user
+// attribute: `observedAt` became a Property, and an expanded attribute `type`
+// produced TWO `type` members in one object.
+//
+// ⚠️ Only real term definitions go in — never a @vocab expansion. That is what
+// keeps the earlier prefix-test regression from recurring: `.../default-context/
+// Poinxt` is not a term definition, so it cannot be found here and still falls
+// through to be detected and rejected as a bad geometry.
+//
+typedef struct CorLdCoreIri
+{
+  const char*  iri;      // pre-rewrite id, e.g. "https://uri.etsi.org/ngsi-ld/observedAt"
+  CorLdItem*   itemP;    // the term itself; itemP->name is the short form
+} CorLdCoreIri;
+
+static KHashTable* coreIriHT = NULL;
+
+
+static unsigned int coreIriHashCode(const char* iri)
+{
+  unsigned int hash = 5381;
+
+  while (*iri != 0)
+  {
+    hash = hash * 33 + (unsigned char) *iri;
+    ++iri;
+  }
+
+  return hash;
+}
+
+
+static int coreIriCompare(const char* iri, void* dataP)
+{
+  return strcmp(iri, ((CorLdCoreIri*) dataP)->iri);
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// coreContextIriSnapshot - build coreIriHT, BEFORE coreContextRewriteToShort
+//
+static void coreContextIriSnapshot(CorLdContext* contextP, KAlloc* kaP)
+{
+  if (contextP == NULL || contextP->ignored == true)
+    return;
+
+  if (contextP->isArray == true)
+  {
+    for (int ix = 0; ix < contextP->contexts; ix++)
+      coreContextIriSnapshot(contextP->contextV[ix], kaP);
+    return;
+  }
+
+  if (contextP->nameHT == NULL)
+    return;
+
+  if (coreIriHT == NULL)
+  {
+    coreIriHT = khashTableCreate(kaP, coreIriHashCode, coreIriCompare, 256);
+    if (coreIriHT == NULL)
+      return;
+  }
+
+  for (int slot = 0; slot < contextP->nameHT->arraySize; slot++)
+  {
+    for (KHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
+    {
+      CorLdItem* itP = (CorLdItem*) lP->data;
+
+      if (itP == NULL || itP->name == NULL || itP->id == NULL)
+        continue;
+
+      //
+      // Keyword aliases (id "@type", "@id") are not IRIs, and a prefix term
+      // ("ngsi-ld" -> ".../ngsi-ld/") is not a name anyone sends. Neither is a
+      // spelling of a term, so neither belongs here.
+      //
+      if (itP->id[0] == '@')
+        continue;
+
+      int idLen = (int) strlen(itP->id);
+      if (idLen < 1)
+        continue;
+
+      char last = itP->id[idLen - 1];
+      if (last == '/' || last == '#' || last == ':')
+        continue;
+
+      if (khashItemLookup(coreIriHT, itP->id) != NULL)
+        continue;                                  // compound cores can repeat a term
+
+      CorLdCoreIri* entryP = (CorLdCoreIri*) kaAlloc(kaP, sizeof(CorLdCoreIri));
+      if (entryP == NULL)
+        return;
+
+      entryP->iri   = itP->id;
+      entryP->itemP = itP;
+
+      khashItemAdd(coreIriHT, itP->id, entryP);
+    }
+  }
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdCoreItemByIri - the core term a fully-expanded IRI names, or NULL
+//
+struct CorLdItem* corLdCoreItemByIri(const char* iri)
+{
+  if (iri == NULL || coreIriHT == NULL)
+    return NULL;
+
+  CorLdCoreIri* entryP = (CorLdCoreIri*) khashItemLookup(coreIriHT, iri);
+
+  return (entryP != NULL) ? entryP->itemP : NULL;
+}
+
+
 static CorLdDownloadFunction  corLdDownloadFn       = NULL;
 static CorLdErrorFunction     corLdErrorFn          = NULL;
 
@@ -337,6 +479,13 @@ static CorLdContext* coreContextFromEmbedded(KAlloc* kaP)
     coreContextPrefixSnapshot(contextP);
 
     //
+    // ... and the expanded spelling of every term, for the reverse direction:
+    // recognising a core term that a client sent as its IRI. Also pre-rewrite,
+    // and for the same reason.
+    //
+    coreContextIriSnapshot(contextP, kaP);
+
+    //
     // Core-context shortcut: rewrite each item's id to its name so the
     // expander returns short forms for core terms with zero per-call work.
     //
@@ -400,6 +549,7 @@ int corLdInit(KAlloc* kaP, const char* coreContextUrl, CorLdDownloadFunction dow
       return -1;
 
     coreContextPrefixSnapshot(corLdCoreContextP);
+    coreContextIriSnapshot(corLdCoreContextP, kaP);
     coreContextRewriteToShort(corLdCoreContextP);
     coreContextClassifyFlags(corLdCoreContextP);
   }
