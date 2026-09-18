@@ -209,8 +209,43 @@ char* corLdExpand(CorLdContext* contextP, const char* name, KAlloc* kaP, CorLdIt
   //
   // Step 1: Already expanded (urn:/http:/https:/)
   //
+  // ... but a CORE term may arrive in either spelling. After JSON-LD expansion
+  // `observedAt` and `https://uri.etsi.org/ngsi-ld/observedAt` are the same
+  // thing, and TS 104-175 § 4.3.4.2 only ALLOWS the short form - it does not
+  // mandate it, and nothing in the spec forbids the long one. coraine's
+  // canonical internal form for a core term is the SHORT name
+  // (coreContextRewriteToShort), so the long spelling must land there too, or
+  // the two diverge: `observedAt` sent expanded used to become an ordinary user
+  // Property, and an attribute `type` sent expanded produced TWO `type` members
+  // in one object - invalid JSON on the wire.
+  //
+  // This is the "compact via the core context" half of the rule, and it costs
+  // nothing on the hot path: a short name is never `alreadyExpanded`, so only
+  // an IRI pays the lookup, and that lookup is one hash probe.
+  //
+  // Deliberately NOT a prefix test on "https://uri.etsi.org/ngsi-ld/". That was
+  // tried once and pulled, because it also swallowed the @vocab expansions -
+  // a `Poinxt` geometry arriving as `.../default-context/Poinxt` was stored as
+  // junk instead of being rejected. corLdCoreItemByIri holds term definitions
+  // ONLY, so a @vocab expansion can never match it.
+  //
   if (corLdAlreadyExpanded(name) == true)
+  {
+    CorLdItem* coreItemP = corLdCoreItemByIri(name);
+
+    if (coreItemP != NULL)
+    {
+      if (itemPP != NULL)
+        *itemPP = coreItemP;
+
+      if (coreContextP != NULL)
+        *coreContextP = true;
+
+      return (char*) coreItemP->name;
+    }
+
     return (char*) name;
+  }
 
   //
   // Step 2: JSON-LD keyword (starts with @)

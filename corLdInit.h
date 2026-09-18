@@ -108,4 +108,21 @@ typedef struct CorLdCorePrefix {
 
 extern const CorLdCorePrefix* corLdCorePrefixes(int* countP);
 
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdCoreItemByIri - the core term a fully-expanded IRI names, or NULL
+//
+// The expanded spelling of every core term, snapshotted at init BEFORE
+// coreContextRewriteToShort flattens id to name. Lets corLdExpand recognise a
+// core term sent as its IRI - which the spec permits and clients do.
+//
+// The core context's own valueHT cannot answer this: its compare function
+// dereferences itemP->id at LOOKUP time, and the rewrite has by then set
+// id = name, so every core reverse lookup compares an IRI against a short name
+// and fails. This table keeps its own copy of the IRI instead.
+//
+extern struct CorLdItem* corLdCoreItemByIri(const char* iri);
+
 #endif
