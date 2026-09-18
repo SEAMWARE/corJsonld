@@ -125,4 +125,17 @@ extern const CorLdCorePrefix* corLdCorePrefixes(int* countP);
 //
 extern struct CorLdItem* corLdCoreItemByIri(const char* iri);
 
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdCorePristine - the core context as parsed, before the short-name rewrite
+//
+// coreContextRewriteToShort() flattens every core term's id to its own name, so
+// the working core context knows none of its own IRIs. This second parse keeps
+// them. Ask it for anything that needs a real core IRI - reverse lookups,
+// prefix IRIs - and never read itemP->id off the working copy for that.
+//
+extern CorLdContext* corLdCorePristine(void);
+
 #endif

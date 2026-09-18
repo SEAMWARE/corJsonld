@@ -121,125 +121,89 @@ static void coreContextPrefixSnapshot(CorLdContext* contextP)
 
 // -----------------------------------------------------------------------------
 //
-// Core-context IRI snapshot — the EXPANDED spelling of every core term
+// The PRISTINE core context — a second parse, never rewritten
 //
-// The core context's own valueHT cannot answer this. Its keys are the IRIs, so
-// the bucket is found, but `valueCompare` dereferences `itemP->id` at LOOKUP
-// time and coreContextRewriteToShort has by then set `id = name`. Every core
-// reverse lookup therefore compares an IRI against a short name and fails —
-// which is why corLdCompact's step 3 never fires for the core context.
+// coreContextRewriteToShort() sets every core term's id to its own name, so the
+// working core context knows NONE of its own IRIs. That is a good optimisation
+// for the hot expand path and a trap for everything else: four separate places
+// needed the real IRIs and each grew its own workaround —
 //
-// So this table keeps its OWN copy of the IRI pointer, captured before the
-// rewrite, and compares against that. Same trap cannot recur: nothing here
-// reads a field the rewrite touches.
+//   - valueCompare() dereferences itemP->id at LOOKUP time, so the core
+//     valueHT compares an IRI against a short name and never matches. That is
+//     why corLdCompact's core reverse lookup was dead code, and why a core term
+//     sent in its expanded spelling was unrecognised on input.
+//   - corLdPrefixExpand() concatenated prefixItemP->id with the suffix, i.e.
+//     the prefix NAME — `ngsi-ld:speed` was stored as `ngsi-ldspeed`, with a
+//     201 and no error.
+//   - the prefix snapshot below existed ONLY to capture ids before the rewrite.
 //
-// Why it exists at all: a client may send a core term in either spelling. After
-// JSON-LD expansion `observedAt` and `https://uri.etsi.org/ngsi-ld/observedAt`
-// are the same thing (TS 104-175 § 4.3.4.2 ALLOWS the short form, it does not
-// mandate it), and coraine's canonical internal form for a core term is the
-// SHORT name. Without this, the long spelling arrived as an unknown user
-// attribute: `observedAt` became a Property, and an expanded attribute `type`
-// produced TWO `type` members in one object.
+// So: parse it twice. The rewritten copy stays exactly as it was; this one is
+// never touched, and anything needing a real IRI asks it. Costs one extra parse
+// of ~100 terms at init and nothing per request.
 //
-// ⚠️ Only real term definitions go in — never a @vocab expansion. That is what
-// keeps the earlier prefix-test regression from recurring: `.../default-context/
-// Poinxt` is not a term definition, so it cannot be found here and still falls
-// through to be detected and rejected as a bad geometry.
+static CorLdContext* corLdCorePristineP = NULL;
+
+static void coreContextClassifyFlags(CorLdContext* contextP);   // defined below
+
+
+// -----------------------------------------------------------------------------
 //
-typedef struct CorLdCoreIri
+// corLdCorePristine -
+//
+CorLdContext* corLdCorePristine(void)
 {
-  const char*  iri;      // pre-rewrite id, e.g. "https://uri.etsi.org/ngsi-ld/observedAt"
-  CorLdItem*   itemP;    // the term itself; itemP->name is the short form
-} CorLdCoreIri;
-
-static KHashTable* coreIriHT = NULL;
-
-
-static unsigned int coreIriHashCode(const char* iri)
-{
-  unsigned int hash = 5381;
-
-  while (*iri != 0)
-  {
-    hash = hash * 33 + (unsigned char) *iri;
-    ++iri;
-  }
-
-  return hash;
-}
-
-
-static int coreIriCompare(const char* iri, void* dataP)
-{
-  return strcmp(iri, ((CorLdCoreIri*) dataP)->iri);
+  return corLdCorePristineP;
 }
 
 
 
 // -----------------------------------------------------------------------------
 //
-// coreContextIriSnapshot - build coreIriHT, BEFORE coreContextRewriteToShort
+// coreContextPristineBuild - the second parse
 //
-static void coreContextIriSnapshot(CorLdContext* contextP, KAlloc* kaP)
+// Built from the context's own body, which both init paths keep (the embedded
+// one points at the compiled-in string, a downloaded one at its copy), so this
+// is one mechanism rather than one per path.
+//
+// Deliberately NOT cache-inserted and NOT given a body: it is an internal
+// lookup table, and inserting it would collide with the real core context on
+// the same URL.
+//
+static void coreContextPristineBuild(const char* bodyStr, KAlloc* kaP)
 {
-  if (contextP == NULL || contextP->ignored == true)
+  if (bodyStr == NULL)
     return;
 
-  if (contextP->isArray == true)
-  {
-    for (int ix = 0; ix < contextP->contexts; ix++)
-      coreContextIriSnapshot(contextP->contextV[ix], kaP);
-    return;
-  }
+  char* body = strdup(bodyStr);      // kjParse is destructive
 
-  if (contextP->nameHT == NULL)
+  if (body == NULL)
     return;
 
-  if (coreIriHT == NULL)
-  {
-    coreIriHT = khashTableCreate(kaP, coreIriHashCode, coreIriCompare, 256);
-    if (coreIriHT == NULL)
-      return;
-  }
+  Kjson   kjson;
+  Kjson*  kjsonP = kjBufferCreate(&kjson, kaP);
+  KjNode* treeP  = kjParse(kjsonP, body);
 
-  for (int slot = 0; slot < contextP->nameHT->arraySize; slot++)
+  if (treeP != NULL)
   {
-    for (KHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
+    KjNode* atContextP = kjLookup(treeP, "@context");
+
+    if (atContextP != NULL)
     {
-      CorLdItem* itP = (CorLdItem*) lP->data;
-
-      if (itP == NULL || itP->name == NULL || itP->id == NULL)
-        continue;
+      corLdCorePristineP = corLdContextFromObject(atContextP, kaP, CORLD_CORE_CONTEXT_URL);
 
       //
-      // Keyword aliases (id "@type", "@id") are not IRIs, and a prefix term
-      // ("ngsi-ld" -> ".../ngsi-ld/") is not a name anyone sends. Neither is a
-      // spelling of a term, so neither belongs here.
+      // ⚠️ Classify it too. These items are handed OUT - corLdExpand returns one
+      // as *itemPP and corLdExpandTree then ORs itemP->flags onto the node, which
+      // is how a structural member is told from a sub-attribute. Unclassified
+      // items OR in zero, so `observedAt` sent in its expanded spelling stopped
+      // being structural and was normalized into a Property ("'observedAt' must
+      // be a string"). Costs one pass over ~100 terms at init.
       //
-      if (itP->id[0] == '@')
-        continue;
-
-      int idLen = (int) strlen(itP->id);
-      if (idLen < 1)
-        continue;
-
-      char last = itP->id[idLen - 1];
-      if (last == '/' || last == '#' || last == ':')
-        continue;
-
-      if (khashItemLookup(coreIriHT, itP->id) != NULL)
-        continue;                                  // compound cores can repeat a term
-
-      CorLdCoreIri* entryP = (CorLdCoreIri*) kaAlloc(kaP, sizeof(CorLdCoreIri));
-      if (entryP == NULL)
-        return;
-
-      entryP->iri   = itP->id;
-      entryP->itemP = itP;
-
-      khashItemAdd(coreIriHT, itP->id, entryP);
+      coreContextClassifyFlags(corLdCorePristineP);
     }
   }
+
+  free(body);
 }
 
 
@@ -248,14 +212,41 @@ static void coreContextIriSnapshot(CorLdContext* contextP, KAlloc* kaP)
 //
 // corLdCoreItemByIri - the core term a fully-expanded IRI names, or NULL
 //
-struct CorLdItem* corLdCoreItemByIri(const char* iri)
+// A plain reverse lookup in the pristine copy, where valueHT's keys and
+// itemP->id agree because nothing flattened them. This used to be a dedicated
+// pre-rewrite hash table; the pristine context makes it an ordinary lookup.
+//
+static struct CorLdItem* pristineReverseLookup(CorLdContext* contextP, const char* iri)
 {
-  if (iri == NULL || coreIriHT == NULL)
+  if (contextP == NULL || contextP->ignored == true)
     return NULL;
 
-  CorLdCoreIri* entryP = (CorLdCoreIri*) khashItemLookup(coreIriHT, iri);
+  if (contextP->isArray == true)
+  {
+    for (int ix = contextP->contexts - 1; ix >= 0; ix--)
+    {
+      struct CorLdItem* itemP = pristineReverseLookup(contextP->contextV[ix], iri);
 
-  return (entryP != NULL) ? entryP->itemP : NULL;
+      if (itemP != NULL)
+        return itemP;
+    }
+
+    return NULL;
+  }
+
+  if (contextP->valueHT == NULL)
+    return NULL;
+
+  return (struct CorLdItem*) khashItemLookup(contextP->valueHT, iri);
+}
+
+
+struct CorLdItem* corLdCoreItemByIri(const char* iri)
+{
+  if (iri == NULL)
+    return NULL;
+
+  return pristineReverseLookup(corLdCorePristineP, iri);
 }
 
 
@@ -476,14 +467,14 @@ static CorLdContext* coreContextFromEmbedded(KAlloc* kaP)
     // URL is gone after. corLdCorePrefixes() serves the snapshot for
     // compact-IRI emission in corLdCompact step 5.
     //
-    coreContextPrefixSnapshot(contextP);
+    // The second, un-rewritten parse. Everything that needs a real core IRI
+    // reads it from here — see the comment on corLdCorePristineP.
+    coreContextPristineBuild(corLdCoreContextBody, kaP);
 
-    //
-    // ... and the expanded spelling of every term, for the reverse direction:
-    // recognising a core term that a client sent as its IRI. Also pre-rewrite,
-    // and for the same reason.
-    //
-    coreContextIriSnapshot(contextP, kaP);
+    // Prefix snapshot for corLdCompact's longest-match scan. Taken from the
+    // PRISTINE copy now, so it is an ordinary derived cache rather than
+    // something that has to happen before the rewrite.
+    coreContextPrefixSnapshot((corLdCorePristineP != NULL) ? corLdCorePristineP : contextP);
 
     //
     // Core-context shortcut: rewrite each item's id to its name so the
@@ -548,8 +539,8 @@ int corLdInit(KAlloc* kaP, const char* coreContextUrl, CorLdDownloadFunction dow
     if (corLdCoreContextP == NULL)
       return -1;
 
-    coreContextPrefixSnapshot(corLdCoreContextP);
-    coreContextIriSnapshot(corLdCoreContextP, kaP);
+    coreContextPristineBuild(corLdCoreContextP->body, kaP);
+    coreContextPrefixSnapshot((corLdCorePristineP != NULL) ? corLdCorePristineP : corLdCoreContextP);
     coreContextRewriteToShort(corLdCoreContextP);
     coreContextClassifyFlags(corLdCoreContextP);
   }
