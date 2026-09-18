@@ -260,17 +260,41 @@ char* corLdExpand(CorLdContext* contextP, const char* name, KAlloc* kaP, CorLdIt
   {
     char* expanded = corLdPrefixExpand(contextP, name, kaP);
 
-    if (expanded != NULL)
-      return expanded;
+    if (expanded == NULL)
+    {
+      //
+      // Try core context prefix expansion
+      //
+      expanded = corLdPrefixExpand(corLdCoreContext(), name, kaP);
 
-    //
-    // Try core context prefix expansion
-    //
-    expanded = corLdPrefixExpand(corLdCoreContext(), name, kaP);
+      if ((expanded != NULL) && (coreContextP != NULL))
+        *coreContextP = true;
+    }
+
     if (expanded != NULL)
     {
-      if (coreContextP != NULL)
-        *coreContextP = true;
+      //
+      // Prefix expansion produced an IRI - which may be a CORE term's IRI, and
+      // then the canonical internal form is the SHORT name, exactly as for the
+      // same term written out in full (see step 1). `ngsi-ld:Property` is the
+      // same thing as `Property` and as
+      // `https://uri.etsi.org/ngsi-ld/Property`; without this it alone came out
+      // as the IRI, so three legal spellings of one type produced two stored
+      // forms.
+      //
+      CorLdItem* coreItemP = corLdCoreItemByIri(expanded);
+
+      if (coreItemP != NULL)
+      {
+        if (itemPP != NULL)
+          *itemPP = coreItemP;
+
+        if (coreContextP != NULL)
+          *coreContextP = true;
+
+        return (char*) coreItemP->name;
+      }
+
       return expanded;
     }
   }
