@@ -7,8 +7,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <stdbool.h>                                 // bool
-#include <string.h>                                  // strcmp
+#include <string.h>                                  // strcmp, strlen, memcpy
 
+#include "kalloc/kaAlloc.h"                          // kaAlloc
 #include "kjson/KjNode.h"                            // KjNode, KjObject
 #include "kjson/kjLookup.h"                          // kjLookup
 #include "kjson/kjBuilder.h"                         // kjChildRemove
@@ -25,6 +26,41 @@
 //
 // expandObject - recursively expand all names inside an object
 //
+// -----------------------------------------------------------------------------
+//
+// vocabValueExpand - expand one value of an @type:@vocab term
+//
+// The part before a registrant-declared suffix (CorLdVocabValueSuffix) is the
+// term; the suffix is appended back verbatim.
+//
+static char* vocabValueExpand(CorLdContext* contextP, CorLdItem* termItemP, char* value, KAlloc* kaP)
+{
+  CorLdVocabValueSuffix suffixFn = corLdGetVocabValueSuffix();
+  int                   ix       = (suffixFn != NULL) ? suffixFn(termItemP->name, value) : -1;
+
+  if (ix <= 0)
+    return corLdExpand(contextP, value, kaP, NULL, NULL);
+
+  char* termP = (char*) kaAlloc(kaP, ix + 1);
+  memcpy(termP, value, ix);
+  termP[ix] = 0;
+
+  char* expandedP = corLdExpand(contextP, termP, kaP, NULL, NULL);
+  if (expandedP == NULL)
+    return NULL;
+
+  int   expandedLen = strlen(expandedP);
+  int   suffixLen   = strlen(&value[ix]);
+  char* outP        = (char*) kaAlloc(kaP, expandedLen + suffixLen + 1);
+
+  memcpy(outP, expandedP, expandedLen);
+  memcpy(&outP[expandedLen], &value[ix], suffixLen + 1);
+
+  return outP;
+}
+
+
+
 static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, int level)
 {
   if (objectP == NULL || objectP->type != KjObject)
@@ -181,7 +217,7 @@ static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, i
         // prefixed by @vocab and silently passes URI-shape checks.
         if (childP->type == KjString && childP->value.s != NULL && childP->value.s[0] != '\0')
         {
-          char* ev = corLdExpand(contextP, childP->value.s, kaP, NULL, NULL);
+          char* ev = vocabValueExpand(contextP, termItemP, childP->value.s, kaP);
           if (ev != NULL) childP->value.s = ev;
         }
         else if (childP->type == KjArray)
@@ -190,7 +226,7 @@ static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, i
           {
             if (elemP->type == KjString && elemP->value.s != NULL && elemP->value.s[0] != '\0')
             {
-              char* ev = corLdExpand(contextP, elemP->value.s, kaP, NULL, NULL);
+              char* ev = vocabValueExpand(contextP, termItemP, elemP->value.s, kaP);
               if (ev != NULL) elemP->value.s = ev;
             }
           }

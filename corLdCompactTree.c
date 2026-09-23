@@ -6,7 +6,7 @@
 // Copyright 2026 Seamware
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <string.h>                                  // strcmp
+#include <string.h>                                  // strcmp, strlen, memcpy, memmove
 
 #include "kjson/KjNode.h"                            // KjNode, KjObject, KjArray
 #include "corJsonld/CorLdItem.h"                       // CorLdItem, CorLdContainer*
@@ -23,6 +23,55 @@
 //
 // compactObject - recursively compact all names inside an object
 //
+// -----------------------------------------------------------------------------
+//
+// vocabValueCompact - compact one value of an @type:@vocab term
+//
+// The mirror of vocabValueExpand: the part before a registrant-declared suffix
+// is compacted and the suffix follows it. Done IN PLACE, as there is no
+// allocator here - the compacted term is never longer than its IRI, so the
+// suffix only ever moves towards the front of the value's own buffer. Should a
+// compaction ever come out longer, the value is left as it was.
+//
+static void vocabValueCompact(CorLdContext* coreP, CorLdItem* termItemP, KjNode* valueP)
+{
+  CorLdVocabValueSuffix suffixFn = corLdGetVocabValueSuffix();
+  int                   ix       = (suffixFn != NULL) ? suffixFn(termItemP->name, valueP->value.s) : -1;
+
+  if (ix <= 0)
+  {
+    const char* cv = corLdCompact(coreP, valueP->value.s);
+    if (cv != NULL) valueP->value.s = (char*) cv;
+    return;
+  }
+
+  char* valueS = valueP->value.s;
+  char  saved  = valueS[ix];
+
+  //
+  // The compacted term may point INTO the value itself (the tail of the IRI),
+  // so it is measured while the term is still terminated, and moved to the front
+  // before the suffix is put back and moved up behind it. Both moves go towards
+  // the front and stay within [0, ix) and [ix, end) respectively.
+  //
+  valueS[ix] = 0;
+
+  const char* cv    = corLdCompact(coreP, valueS);
+  int         cvLen = (cv != NULL) ? (int) strlen(cv) : -1;
+
+  if ((cv == NULL) || (cvLen > ix))
+  {
+    valueS[ix] = saved;
+    return;
+  }
+
+  memmove(valueS, cv, cvLen);
+  valueS[ix] = saved;
+  memmove(&valueS[cvLen], &valueS[ix], strlen(&valueS[ix]) + 1);
+}
+
+
+
 static void compactObject(KjNode* objectP, CorLdContext* coreP, int level)
 {
   if (objectP == NULL || objectP->type != KjObject)
@@ -126,19 +175,13 @@ static void compactObject(KjNode* objectP, CorLdContext* coreP, int level)
              strcmp(termItemP->type, "@vocab") == 0)
     {
       if (childP->type == KjString)
-      {
-        const char* cv = corLdCompact(coreP, childP->value.s);
-        if (cv != NULL) childP->value.s = (char*) cv;
-      }
+        vocabValueCompact(coreP, termItemP, childP);
       else if (childP->type == KjArray)
       {
         for (KjNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
         {
           if (elemP->type == KjString)
-          {
-            const char* cv = corLdCompact(coreP, elemP->value.s);
-            if (cv != NULL) elemP->value.s = (char*) cv;
-          }
+            vocabValueCompact(coreP, termItemP, elemP);
         }
       }
     }

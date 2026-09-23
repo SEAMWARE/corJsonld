@@ -29,6 +29,17 @@
 static CorLdVocabExpandCheck vocabExpandCheck = NULL;
 static CorLdValueCheck       valueCheck       = NULL;
 static CorLdKeywordCheck     keywordCheck     = NULL;
+static CorLdVocabValueSuffix vocabValueSuffix = NULL;
+
+void corLdSetVocabValueSuffix(CorLdVocabValueSuffix fn)
+{
+  vocabValueSuffix = fn;
+}
+
+CorLdVocabValueSuffix corLdGetVocabValueSuffix(void)
+{
+  return vocabValueSuffix;
+}
 
 void corLdSetValueCheck(CorLdValueCheck fn)
 {

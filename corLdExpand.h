@@ -130,6 +130,31 @@ extern CorLdValueCheck corLdGetValueCheck(void);
 
 // -----------------------------------------------------------------------------
 //
+// CorLdVocabValueSuffix - where a value of an @vocab-typed term stops being a term
+//
+// A term bound with @type:@vocab has vocab terms as its values, expanded on the
+// way in and compacted on the way out. A registrant may declare that a value of
+// such a term carries a SUFFIX that is not part of the term: the part before it
+// is expanded / compacted, the suffix is kept verbatim. The lib knows nothing of
+// what a suffix means; the broker decides.
+//
+//   term  - the term's short name, as the context defines it (not its IRI:
+//           the core context's items carry their short name as their id)
+//   value - the value, short on the way in, expanded on the way out
+//
+// Returns the index of the suffix's first character, or -1 for none.
+//
+typedef int (*CorLdVocabValueSuffix)(const char* term, const char* value);
+
+extern void corLdSetVocabValueSuffix(CorLdVocabValueSuffix fn);
+
+// Read accessor for the lib's own expand/compact-tree wiring.
+extern CorLdVocabValueSuffix corLdGetVocabValueSuffix(void);
+
+
+
+// -----------------------------------------------------------------------------
+//
 // corLdExpand -
 //
 extern char* corLdExpand(CorLdContext* contextP, const char* name, KAlloc* kaP, CorLdItem** itemPP, bool* coreContextP);
