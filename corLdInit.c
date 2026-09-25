@@ -17,7 +17,9 @@
 #include "kjson/kjParse.h"                           // kjParse
 #include "kjson/kjLookup.h"                          // kjLookup
 #include "kjson/kjBufferCreate.h"                    // kjBufferCreate
-#include "khash/khash.h"                             // KHashTable, KHashListItem
+#include "kalloc/kaAlloc.h"                           // kaAlloc
+#include "kalloc/kaStrdup.h"                         // kaStrdup
+#include "khash/khash.h"                             // KHashTable, KHashListItem, khashItemAdd, khashItemLookup
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTInit
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
 #include "corJsonld/CorLdContext.h"                    // CorLdContext
@@ -420,6 +422,65 @@ static void coreContextClassifyFlags(CorLdContext* contextP)
       itemP->flags = coreTermFlags(itemP->name);
     }
   }
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// coreNameTable - the context of the core that holds the terms (the core is one object context)
+//
+static CorLdContext* coreNameTable(CorLdContext* contextP)
+{
+  while ((contextP != NULL) && (contextP->isArray == true))
+    contextP = (contextP->contexts > 0) ? contextP->contextV[0] : NULL;
+
+  return ((contextP != NULL) && (contextP->nameHT != NULL)) ? contextP : NULL;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdCoreTermsAdd -
+//
+int corLdCoreTermsAdd(const CorLdCoreTerm* termV, KAlloc* kaP)
+{
+  CorLdContext* coreP = coreNameTable(corLdCoreContextP);
+
+  if (coreP == NULL)
+    return -1;
+
+  int added = 0;
+
+  for (const CorLdCoreTerm* tP = termV; (tP != NULL) && (tP->name != NULL); tP++)
+  {
+    if (khashItemLookup(coreP->nameHT, tP->name) != NULL)
+      continue;   // the core has it already - its own definition stands
+
+    CorLdItem* itemP = (CorLdItem*) kaAlloc(kaP, sizeof(CorLdItem));
+
+    if (itemP == NULL)
+      return -1;
+
+    memset(itemP, 0, sizeof(CorLdItem));
+
+    //
+    // Born in the form coreContextRewriteToShort gives every core term: id = name,
+    // so it expands to itself and is stored, matched and rendered short.
+    //
+    itemP->name      = kaStrdup(kaP, tP->name);
+    itemP->id        = itemP->name;
+    itemP->type      = (tP->type != NULL) ? kaStrdup(kaP, tP->type) : NULL;
+    itemP->container = CorLdContainerNone;
+    itemP->flags     = coreTermFlags(itemP->name);
+
+    khashItemAdd(coreP->nameHT,  itemP->name, itemP);
+    khashItemAdd(coreP->valueHT, itemP->id,   itemP);
+    ++added;
+  }
+
+  return added;
 }
 
 
