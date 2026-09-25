@@ -71,6 +71,38 @@ extern void corLdCleanup(void);
 
 // -----------------------------------------------------------------------------
 //
+// CorLdCoreTerm - a term the broker adds to the core context
+//
+typedef struct CorLdCoreTerm
+{
+  const char* name;   // the term - and, as for every core term, its own expansion
+  const char* type;   // "@id", "@vocab", ... or NULL
+} CorLdCoreTerm;
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdCoreTermsAdd - make terms of the broker's own payloads CORE terms
+//
+// A payload the broker defines beyond the published core context - coraine's
+// ContextBridge and Channel, proposed to ETSI for the core - uses terms that
+// must behave exactly as core terms do: never expanded, never overridden by a
+// user @context. Added after corLdInit, into the rewritten core (id = name),
+// flagged KJF_CORE_TERM. A term the core already defines is left as it is.
+//
+// ⚠ The core overrides EVERY other context, so a term added here takes its
+// name from every vocabulary a client may load - choose names absent from the
+// well-known ones (Smart Data Models, schema.org, SOSA/SSN, SAREF).
+//
+// termV ends with a { NULL, NULL } entry. Returns the number added, -1 on error.
+//
+extern int corLdCoreTermsAdd(const CorLdCoreTerm* termV, KAlloc* kaP);
+
+
+
+// -----------------------------------------------------------------------------
+//
 // corLdCoreContext -
 //
 extern CorLdContext* corLdCoreContext(void);
