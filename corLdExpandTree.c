@@ -61,10 +61,34 @@ static char* vocabValueExpand(CorLdContext* contextP, CorLdItem* termItemP, char
 
 
 
+// -----------------------------------------------------------------------------
+//
+// isJsonLiteral - does this object declare itself JSON, not JSON-LD? ("@type": "@json")
+//
+// JSON-LD's JSON literal, { "@type": "@json", "@value": <any JSON> }. Its content
+// is somebody else's JSON: keys that are not terms, that may not even satisfy
+// the term grammar - expanding them is wrong, and can make valid JSON fail as
+// a bad name.
+//
+static bool isJsonLiteral(KjNode* objectP)
+{
+  if ((objectP == NULL) || (objectP->type != KjObject))
+    return false;
+
+  KjNode* typeP = kjLookup(objectP, "@type");
+
+  return ((typeP != NULL) && (typeP->type == KjString) && (strcmp(typeP->value.s, "@json") == 0));
+}
+
+
+
 static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, int level)
 {
   if (objectP == NULL || objectP->type != KjObject)
     return;
+
+  if (isJsonLiteral(objectP) == true)
+    return;   // taken verbatim - also as an element of an array
 
   CorLdKeywordCheck keywordCheckP = corLdGetKeywordCheck();
 
@@ -120,10 +144,17 @@ static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, i
     // vocabulary terms and q's "[...]" addresses them verbatim
     // (§ 4.5.2 / § 4.9). Expanding them rewrote {"c":{"d":7}} into
     // default-context IRized keys, unreachable by q=attr[c.d].
+    //
+    // And anything typed @json - by its term ("bridgeOptions": {"@type": "@json"}
+    // in a context, as the core's own "json" is) or by itself (a JSON literal,
+    // { "@type": "@json", "@value": ... }): JSON, not JSON-LD, so taken verbatim.
+    //
     int  vk         = (termItemP != NULL) ? KJF_VK_ID(termItemP->flags) : KJF_VK_NONE;
+    bool jsonTyped  = (termItemP != NULL) && (termItemP->type != NULL) && (strcmp(termItemP->type, "@json") == 0);
     bool opaqueKeys = (termItemP != NULL &&
                        ((termItemP->container & CORLD_CONTAINER_OPAQUE_KEYS) != 0 ||
-                        vk == KJF_VK_VALUE || vk == KJF_VK_JSON || vk == KJF_VK_VALUELIST));
+                        vk == KJF_VK_VALUE || vk == KJF_VK_JSON || vk == KJF_VK_VALUELIST)) ||
+                      jsonTyped || isJsonLiteral(childP);
 
     if (expanded != NULL && expanded[0] != '@')
     {
