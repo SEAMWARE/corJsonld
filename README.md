@@ -191,7 +191,7 @@ make di         # debug + install
 ```
 
 The library links statically into its consumers as `libcorJsonld.a`. Sibling
-k-lib repos must be present (the build references `../<lib>/lib<lib>.a`).
+repos must be present (the build references `../<lib>/lib<lib>.a`).
 
 ## Dependencies
 
@@ -200,7 +200,7 @@ Sibling repos (one `.a` each):
 - [`corAlloc`](https://github.com/SEAMWARE/corAlloc) — arena allocator (`CorAlloc`)
 - [`corTree`](https://github.com/SEAMWARE/corTree) — the tree (`CorNode`)
 - [`corJson`](https://github.com/SEAMWARE/corJson) — JSON parsing and rendering (`CorJson`)
-- [`kbase`](https://gitlab.com/kzangeli/kbase) — core utilities
+- [`corBase`](https://github.com/SEAMWARE/corBase) — core utilities and the library log (`COR_LIB_*`)
 - [`corHash`](https://github.com/SEAMWARE/corHash) — hash tables (`CorHashTable`)
 - [`corLog`](https://github.com/SEAMWARE/corLog) — logging and trace levels
 
