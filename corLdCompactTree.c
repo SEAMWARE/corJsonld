@@ -8,7 +8,7 @@
 //
 #include <string.h>                                  // strcmp, strlen, memcpy, memmove
 
-#include "kjson/KjNode.h"                            // KjNode, KjObject, KjArray
+#include "corTree/CorNode.h"                         // CorNode, CorObject, CorArray
 #include "corJsonld/CorLdItem.h"                       // CorLdItem, CorLdContainer*
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTCompact
@@ -33,7 +33,7 @@
 // suffix only ever moves towards the front of the value's own buffer. Should a
 // compaction ever come out longer, the value is left as it was.
 //
-static void vocabValueCompact(CorLdContext* coreP, CorLdItem* termItemP, KjNode* valueP)
+static void vocabValueCompact(CorLdContext* coreP, CorLdItem* termItemP, CorNode* valueP)
 {
   CorLdVocabValueSuffix suffixFn = corLdGetVocabValueSuffix();
   int                   ix       = (suffixFn != NULL) ? suffixFn(termItemP->name, valueP->value.s) : -1;
@@ -72,12 +72,12 @@ static void vocabValueCompact(CorLdContext* coreP, CorLdItem* termItemP, KjNode*
 
 
 
-static void compactObject(KjNode* objectP, CorLdContext* coreP, int level)
+static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
 {
-  if (objectP == NULL || objectP->type != KjObject)
+  if (objectP == NULL || objectP->type != CorObject)
     return;
 
-  for (KjNode* childP = objectP->value.firstChildP; childP != NULL; childP = childP->next)
+  for (CorNode* childP = objectP->value.firstChildP; childP != NULL; childP = childP->next)
   {
     if (childP->name == NULL)
       continue;
@@ -142,18 +142,18 @@ static void compactObject(KjNode* objectP, CorLdContext* coreP, int level)
     //
     if (strcmp(childP->name, "type") == 0)
     {
-      if (childP->type == KjString)
+      if (childP->type == CorString)
       {
         const char* compactedValue = corLdCompact(coreP, childP->value.s);
 
         if (compactedValue != NULL)
           childP->value.s = (char*) compactedValue;
       }
-      else if (childP->type == KjArray)
+      else if (childP->type == CorArray)
       {
-        for (KjNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+        for (CorNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
         {
-          if (elemP->type == KjString)
+          if (elemP->type == CorString)
           {
             const char* compactedValue = corLdCompact(coreP, elemP->value.s);
 
@@ -174,13 +174,13 @@ static void compactObject(KjNode* objectP, CorLdContext* coreP, int level)
              termItemP->type != NULL &&
              strcmp(termItemP->type, "@vocab") == 0)
     {
-      if (childP->type == KjString)
+      if (childP->type == CorString)
         vocabValueCompact(coreP, termItemP, childP);
-      else if (childP->type == KjArray)
+      else if (childP->type == CorArray)
       {
-        for (KjNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+        for (CorNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
         {
-          if (elemP->type == KjString)
+          if (elemP->type == CorString)
             vocabValueCompact(coreP, termItemP, elemP);
         }
       }
@@ -194,11 +194,11 @@ static void compactObject(KjNode* objectP, CorLdContext* coreP, int level)
     if (opaqueKeys)
       continue;
 
-    if (childP->type == KjObject)
+    if (childP->type == CorObject)
       compactObject(childP, coreP, level + 1);
-    else if (childP->type == KjArray)
+    else if (childP->type == CorArray)
     {
-      for (KjNode* itemP = childP->value.firstChildP; itemP != NULL; itemP = itemP->next)
+      for (CorNode* itemP = childP->value.firstChildP; itemP != NULL; itemP = itemP->next)
         compactObject(itemP, coreP, level + 1);
     }
   }
@@ -210,18 +210,18 @@ static void compactObject(KjNode* objectP, CorLdContext* coreP, int level)
 //
 // corLdCompactTreeWith -
 //
-void corLdCompactTreeWith(KjNode* treeP, CorLdContext* ctxP)
+void corLdCompactTreeWith(CorNode* treeP, CorLdContext* ctxP)
 {
   if (treeP == NULL || ctxP == NULL)
     return;
 
-  if (treeP->type == KjObject)
+  if (treeP->type == CorObject)
   {
     compactObject(treeP, ctxP, 0);
   }
-  else if (treeP->type == KjArray)
+  else if (treeP->type == CorArray)
   {
-    for (KjNode* itemP = treeP->value.firstChildP; itemP != NULL; itemP = itemP->next)
+    for (CorNode* itemP = treeP->value.firstChildP; itemP != NULL; itemP = itemP->next)
       compactObject(itemP, ctxP, 0);
   }
 }
@@ -232,7 +232,7 @@ void corLdCompactTreeWith(KjNode* treeP, CorLdContext* ctxP)
 //
 // corLdCompactTree -
 //
-void corLdCompactTree(KjNode* treeP)
+void corLdCompactTree(CorNode* treeP)
 {
   corLdCompactTreeWith(treeP, corLdCoreContext());
 }

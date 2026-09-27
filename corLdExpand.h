@@ -11,7 +11,7 @@
 
 #include <stdbool.h>                                 // bool
 #include "kalloc/KAlloc.h"                           // KAlloc
-#include "kjson/KjNode.h"                            // KjNode
+#include "corTree/CorNode.h"                         // CorNode
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 
@@ -19,10 +19,10 @@
 
 // -----------------------------------------------------------------------------
 //
-// KjNode.flags bits (set by corLdExpandTree, read by NGSI-LD code)
+// CorNode.flags bits (set by corLdExpandTree, read by NGSI-LD code)
 //
 // These bits are classified ONCE on the core-context CorLdItems (corLdInit) and
-// copied verbatim onto each KjNode during expansion (corLdExpandTree) — so the
+// copied verbatim onto each CorNode during expansion (corLdExpandTree) — so the
 // broker decides structure with a bit test, never a strcmp chain.
 //
 // KJF_CORE_TERM - the term is defined by the core @context (any core term:
@@ -113,13 +113,13 @@ extern CorLdKeywordCheck corLdGetKeywordCheck(void);
 //   term      - short name as it appeared in the user payload
 //   datatype  - the @type string from the term def (may be short form
 //               like "xsd:dateTime" or a full IRI)
-//   valueP    - the node carrying the value (KjString / KjInt / KjFloat /
-//               KjBoolean depending on the JSON shape)
+//   valueP    - the node carrying the value (CorString / CorInt / CorFloat /
+//               CorBoolean depending on the JSON shape)
 //
 // Returns true to accept; false to signal "rejected" — the callback owns
 // the error-emission path (typically ldError on the broker side).
 //
-typedef bool (*CorLdValueCheck)(const char* term, const char* datatype, KjNode* valueP);
+typedef bool (*CorLdValueCheck)(const char* term, const char* datatype, CorNode* valueP);
 
 extern void corLdSetValueCheck(CorLdValueCheck fn);
 
@@ -194,7 +194,7 @@ extern const char* contextVocab(CorLdContext* contextP);
 //                        @type optional + string, no other members). Structure
 //                        only; *detailP gets a static reason string on failure.
 //
-extern bool corLdValueObjectIs(KjNode* objP);
-extern bool corLdValueObjectCheck(KjNode* objP, char** detailP);
+extern bool corLdValueObjectIs(CorNode* objP);
+extern bool corLdValueObjectCheck(CorNode* objP, char** detailP);
 
 #endif

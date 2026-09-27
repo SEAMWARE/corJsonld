@@ -69,9 +69,9 @@ typedef struct CorLdContext {
 typedef char* (*CorLdDownloadFunction)(const char* url, int* statusCodeP);
 ```
 
-`KAlloc`, `KjNode`, `KHashTable` and `Kjson` come from the k-libs (`kalloc`,
-`kjson`, `khash`). corJsonld allocates onto a caller-provided `KAlloc` arena — it
-does not own request-scoped memory.
+`KAlloc` and `KHashTable` come from the k-libs (`kalloc`, `khash`), `CorNode` from
+corTree and `CorJson` from corJson. corJsonld allocates onto a caller-provided
+`KAlloc` arena — it does not own request-scoped memory.
 
 ### Lifecycle
 
@@ -88,8 +88,8 @@ needed. `corLdCoreContext()` returns the loaded core.
 ### Parsing contexts
 
 ```c
-CorLdContext*    corLdContextFromTree(KjNode* contextNode, KAlloc* kaP);
-CorLdContext*    corLdContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* url);
+CorLdContext*    corLdContextFromTree(CorNode* contextNode, KAlloc* kaP);
+CorLdContext*    corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const char* url);
 CorLdContext*    corLdContextFromUrl(const char* url, KAlloc* kaP);   // uses cache + download callback
 ```
 
@@ -114,9 +114,9 @@ then reverse lookup in the user context, then the core.
 ### Whole-tree operations
 
 ```c
-CorLdContext*    corLdExpandTree(KjNode* treeP, CorLdContext* userContextP, KAlloc* kaP);
-void            corLdCompactTree(KjNode* treeP);                       // against the core context
-void            corLdCompactTreeWith(KjNode* treeP, CorLdContext* ctxP); // against a specific context
+CorLdContext*    corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, KAlloc* kaP);
+void            corLdCompactTree(CorNode* treeP);                      // against the core context
+void            corLdCompactTreeWith(CorNode* treeP, CorLdContext* ctxP); // against a specific context
 ```
 
 Expand or compact every term in a parsed JSON tree in a single pass — the common
@@ -141,8 +141,8 @@ reaped at `expiresAt`.
 
 ```c
 #include "kalloc/kalloc.h"          // KAlloc, kaBufferInit
-#include "kjson/kjBufferCreate.h"   // Kjson, kjBufferCreate
-#include "kjson/kjParse.h"          // kjParse
+#include "corJson/corJsonCreate.h"  // CorJson, corJsonCreate
+#include "corJson/corJsonParse.h"   // corJsonParse
 #include "corJsonld/corJsonld.h"
 
 // User-provided download function (e.g. via libcurl) — return a malloc'd body.
@@ -164,10 +164,10 @@ int main(void)
   corLdInit(&ka, NULL, myDownload);
 
   // 3. Parse an inline context
-  Kjson  kjson;
-  Kjson* kjP = kjBufferCreate(&kjson, &ka);
-  char   json[] = "{ \"@context\": { \"temperature\": \"https://example.org/temperature\" } }";
-  KjNode* tree  = kjParse(kjP, json);
+  CorJson  corJson;
+  CorJson* corJsonP = corJsonCreate(&corJson, &ka);
+  char     json[]   = "{ \"@context\": { \"temperature\": \"https://example.org/temperature\" } }";
+  CorNode* tree     = corJsonParse(corJsonP, json);
 
   CorLdContext* ctxP = corLdContextFromTree(tree, &ka);
 
@@ -195,10 +195,11 @@ k-lib repos must be present (the build references `../<lib>/lib<lib>.a`).
 
 ## Dependencies
 
-Sibling k-lib repos (one `.a` each):
+Sibling repos (one `.a` each):
 
 - [`kalloc`](https://gitlab.com/kzangeli/kalloc) — arena allocator (`KAlloc`)
-- [`kjson`](https://gitlab.com/kzangeli/kjson) — JSON parsing / trees (`KjNode`, `Kjson`)
+- [`corTree`](https://github.com/SEAMWARE/corTree) — the tree (`CorNode`)
+- [`corJson`](https://github.com/SEAMWARE/corJson) — JSON parsing and rendering (`CorJson`)
 - [`kbase`](https://gitlab.com/kzangeli/kbase) — core utilities
 - [`khash`](https://gitlab.com/kzangeli/khash) — hash tables (`KHashTable`)
 - [`klog`](https://gitlab.com/kzangeli/klog) — logging

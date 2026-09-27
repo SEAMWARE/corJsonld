@@ -10,9 +10,10 @@
 #include <string.h>                                  // strcmp, strlen, memcpy
 
 #include "kalloc/kaAlloc.h"                          // kaAlloc
-#include "kjson/KjNode.h"                            // KjNode, KjObject
-#include "kjson/kjLookup.h"                          // kjLookup
-#include "kjson/kjBuilder.h"                         // kjChildRemove
+#include "kalloc/KAlloc.h"                           // KAlloc
+#include "corTree/CorNode.h"                         // CorNode, CorObject
+#include "corTree/corTreeLookup.h"                   // corTreeLookup
+#include "corTree/corTreeBuilder.h"                  // corTreeChildRemove
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTExpand
 #include "corJsonld/corLdInit.h"                       // corLdCoreContext
@@ -70,21 +71,21 @@ static char* vocabValueExpand(CorLdContext* contextP, CorLdItem* termItemP, char
 // the term grammar - expanding them is wrong, and can make valid JSON fail as
 // a bad name.
 //
-static bool isJsonLiteral(KjNode* objectP)
+static bool isJsonLiteral(CorNode* objectP)
 {
-  if ((objectP == NULL) || (objectP->type != KjObject))
+  if ((objectP == NULL) || (objectP->type != CorObject))
     return false;
 
-  KjNode* typeP = kjLookup(objectP, "@type");
+  CorNode* typeP = corTreeLookup(objectP, "@type");
 
-  return ((typeP != NULL) && (typeP->type == KjString) && (strcmp(typeP->value.s, "@json") == 0));
+  return ((typeP != NULL) && (typeP->type == CorString) && (strcmp(typeP->value.s, "@json") == 0));
 }
 
 
 
-static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, int level)
+static void expandObject(CorNode* objectP, CorLdContext* contextP, KAlloc* kaP, int level)
 {
-  if (objectP == NULL || objectP->type != KjObject)
+  if (objectP == NULL || objectP->type != CorObject)
     return;
 
   if (isJsonLiteral(objectP) == true)
@@ -92,7 +93,7 @@ static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, i
 
   CorLdKeywordCheck keywordCheckP = corLdGetKeywordCheck();
 
-  for (KjNode* childP = objectP->value.firstChildP; childP != NULL; childP = childP->next)
+  for (CorNode* childP = objectP->value.firstChildP; childP != NULL; childP = childP->next)
   {
     if (childP->name == NULL)
       continue;
@@ -175,34 +176,34 @@ static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, i
       // a value-object there is an attribute value, validated downstream by
       // ldCheckAttribute — not a free property of the enclosing resource.
       //
-      if (opaqueKeys == false && childP->type == KjObject)
+      if (opaqueKeys == false && childP->type == CorObject)
       {
-        KjNode* atValueP = kjLookup(childP, "@value");
+        CorNode* atValueP = corTreeLookup(childP, "@value");
 
         if (atValueP != NULL)
         {
-          KjNode*     atTypeP = kjLookup(childP, "@type");
-          const char* voType  = (atTypeP != NULL && atTypeP->type == KjString) ? atTypeP->value.s : NULL;
+          CorNode*    atTypeP = corTreeLookup(childP, "@type");
+          const char* voType  = (atTypeP != NULL && atTypeP->type == CorString) ? atTypeP->value.s : NULL;
 
           if (voType != NULL && strcmp(voType, "@vocab") == 0)
           {
             // @vocab — the @value is itself a vocab term (or array of them).
-            if (atValueP->type == KjString && atValueP->value.s != NULL && atValueP->value.s[0] != '\0')
+            if (atValueP->type == CorString && atValueP->value.s != NULL && atValueP->value.s[0] != '\0')
             {
               char* ev = corLdExpand(contextP, atValueP->value.s, kaP, NULL, NULL);
               if (ev != NULL) atValueP->value.s = ev;
             }
-            else if (atValueP->type == KjArray)
+            else if (atValueP->type == CorArray)
             {
-              for (KjNode* elemP = atValueP->value.firstChildP; elemP != NULL; elemP = elemP->next)
-                if (elemP->type == KjString && elemP->value.s != NULL && elemP->value.s[0] != '\0')
+              for (CorNode* elemP = atValueP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+                if (elemP->type == CorString && elemP->value.s != NULL && elemP->value.s[0] != '\0')
                 {
                   char* ev = corLdExpand(contextP, elemP->value.s, kaP, NULL, NULL);
                   if (ev != NULL) elemP->value.s = ev;
                 }
             }
           }
-          else if (voType != NULL && atValueP->type != KjObject && atValueP->type != KjArray)
+          else if (voType != NULL && atValueP->type != CorObject && atValueP->type != CorArray)
           {
             CorLdValueCheck vc = corLdGetValueCheck();
             if (vc != NULL)
@@ -246,16 +247,16 @@ static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, i
         // — let the post-expansion shape validators see the original so
         // they can reject. Without this guard the empty string gets
         // prefixed by @vocab and silently passes URI-shape checks.
-        if (childP->type == KjString && childP->value.s != NULL && childP->value.s[0] != '\0')
+        if (childP->type == CorString && childP->value.s != NULL && childP->value.s[0] != '\0')
         {
           char* ev = vocabValueExpand(contextP, termItemP, childP->value.s, kaP);
           if (ev != NULL) childP->value.s = ev;
         }
-        else if (childP->type == KjArray)
+        else if (childP->type == CorArray)
         {
-          for (KjNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+          for (CorNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
           {
-            if (elemP->type == KjString && elemP->value.s != NULL && elemP->value.s[0] != '\0')
+            if (elemP->type == CorString && elemP->value.s != NULL && elemP->value.s[0] != '\0')
             {
               char* ev = vocabValueExpand(contextP, termItemP, elemP->value.s, kaP);
               if (ev != NULL) elemP->value.s = ev;
@@ -283,16 +284,16 @@ static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, i
         if (vc != NULL)
         {
           const char* shortName = (termItemP->name != NULL) ? termItemP->name : childP->name;
-          if (childP->type == KjArray)
+          if (childP->type == CorArray)
           {
-            for (KjNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+            for (CorNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
             {
-              if (elemP->type == KjObject || elemP->type == KjArray)
+              if (elemP->type == CorObject || elemP->type == CorArray)
                 continue;
               vc(shortName, termItemP->type, elemP);
             }
           }
-          else if (childP->type != KjObject)
+          else if (childP->type != CorObject)
           {
             vc(shortName, termItemP->type, childP);
           }
@@ -306,18 +307,18 @@ static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, i
       // (Its KJF_* bits are already copied from the context item above — "type"
       // is a normal core item ("type":"@type") like any other @type alias.)
       //
-      if (childP->type == KjString)
+      if (childP->type == CorString)
       {
         char* expandedValue = corLdExpand(contextP, childP->value.s, kaP, NULL, NULL);
 
         if (expandedValue != NULL)
           childP->value.s = expandedValue;
       }
-      else if (childP->type == KjArray)
+      else if (childP->type == CorArray)
       {
-        for (KjNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+        for (CorNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
         {
-          if (elemP->type == KjString)
+          if (elemP->type == CorString)
           {
             char* expandedValue = corLdExpand(contextP, elemP->value.s, kaP, NULL, NULL);
 
@@ -336,11 +337,11 @@ static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, i
     if (opaqueKeys)
       continue;
 
-    if (childP->type == KjObject)
+    if (childP->type == CorObject)
       expandObject(childP, contextP, kaP, level + 1);
-    else if (childP->type == KjArray)
+    else if (childP->type == CorArray)
     {
-      for (KjNode* itemP = childP->value.firstChildP; itemP != NULL; itemP = itemP->next)
+      for (CorNode* itemP = childP->value.firstChildP; itemP != NULL; itemP = itemP->next)
         expandObject(itemP, contextP, kaP, level + 1);
     }
   }
@@ -376,7 +377,7 @@ static void expandObject(KjNode* objectP, CorLdContext* contextP, KAlloc* kaP, i
 // boundary sees a stray @context (it would otherwise flow into service
 // routines as if it were a user attribute — subtle stored-Property leak).
 //
-CorLdContext* corLdExpandTree(KjNode* treeP, CorLdContext* userContextP, KAlloc* kaP)
+CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, KAlloc* kaP)
 {
   if (treeP == NULL)
     return NULL;
@@ -384,15 +385,15 @@ CorLdContext* corLdExpandTree(KjNode* treeP, CorLdContext* userContextP, KAlloc*
   if (userContextP == NULL)
     userContextP = corLdCoreContext();
 
-  if (treeP->type == KjObject)
+  if (treeP->type == CorObject)
   {
-    KjNode*      atContextP = kjLookup(treeP, "@context");
+    CorNode*     atContextP = corTreeLookup(treeP, "@context");
     CorLdContext* bodyCtxP   = NULL;
 
     if (atContextP != NULL)
     {
       bodyCtxP = corLdContextFromTree(atContextP, kaP, NULL);   // Inline @context - no URL of its own, so no base
-      kjChildRemove(treeP, atContextP);
+      corTreeChildRemove(treeP, atContextP);
     }
 
     CorLdContext* contextP = (bodyCtxP != NULL) ? bodyCtxP : userContextP;
@@ -403,22 +404,22 @@ CorLdContext* corLdExpandTree(KjNode* treeP, CorLdContext* userContextP, KAlloc*
     return contextP;
   }
 
-  if (treeP->type == KjArray)
+  if (treeP->type == CorArray)
   {
     CorLdContext* firstContextP = NULL;
 
-    for (KjNode* itemP = treeP->value.firstChildP; itemP != NULL; itemP = itemP->next)
+    for (CorNode* itemP = treeP->value.firstChildP; itemP != NULL; itemP = itemP->next)
     {
-      if (itemP->type != KjObject)
+      if (itemP->type != CorObject)
         continue;
 
-      KjNode*      atContextP = kjLookup(itemP, "@context");
+      CorNode*     atContextP = corTreeLookup(itemP, "@context");
       CorLdContext* elemCtxP   = NULL;
 
       if (atContextP != NULL)
       {
         elemCtxP = corLdContextFromTree(atContextP, kaP, NULL);   // Inline @context - no URL of its own, so no base
-        kjChildRemove(itemP, atContextP);
+        corTreeChildRemove(itemP, atContextP);
       }
 
       CorLdContext* useCtx = (elemCtxP != NULL) ? elemCtxP : userContextP;

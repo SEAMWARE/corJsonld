@@ -11,8 +11,9 @@
 
 #include "kalloc/kaAlloc.h"                          // kaAlloc
 #include "kalloc/kaStrdup.h"                         // kaStrdup
-#include "kjson/KjNode.h"                            // KjNode, KjValueType
-#include "kjson/kjLookup.h"                          // kjLookup
+#include "kalloc/KAlloc.h"                           // KAlloc
+#include "corTree/CorNode.h"                         // CorNode, CorValueType
+#include "corTree/corTreeLookup.h"                   // corTreeLookup
 #include "khash/khash.h"                             // khashTableCreate, khashItemAdd, khashItemLookup
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
@@ -88,7 +89,7 @@ static int valueCompare(const char* iri, void* itemP)
 //
 // corLdContextFromObject -
 //
-CorLdContext* corLdContextFromObject(KjNode* objectNode, KAlloc* kaP, const char* url)
+CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const char* url)
 {
   CorLdContext* contextP = (CorLdContext*) kaAlloc(kaP, sizeof(CorLdContext));
 
@@ -112,7 +113,7 @@ CorLdContext* corLdContextFromObject(KjNode* objectNode, KAlloc* kaP, const char
   //
   // Pass 1: Build nameHT from object members
   //
-  KjNode* memberP = objectNode->value.firstChildP;
+  CorNode* memberP = objectNode->value.firstChildP;
 
   while (memberP != NULL)
   {
@@ -136,7 +137,7 @@ CorLdContext* corLdContextFromObject(KjNode* objectNode, KAlloc* kaP, const char
     //
     if (strcmp(memberP->name, "@vocab") == 0)
     {
-      if (memberP->type == KjString)
+      if (memberP->type == CorString)
         contextP->vocab = kaStrdup(kaP, memberP->value.s);
 
       memberP = memberP->next;
@@ -155,34 +156,34 @@ CorLdContext* corLdContextFromObject(KjNode* objectNode, KAlloc* kaP, const char
     itemP->id   = NULL;
     itemP->type = NULL;
 
-    if (memberP->type == KjString)
+    if (memberP->type == CorString)
     {
       //
       // Simple mapping: "temperature": "https://..."
       //
       itemP->id = kaStrdup(kaP, memberP->value.s);
     }
-    else if (memberP->type == KjObject)
+    else if (memberP->type == CorObject)
     {
       //
       // Object mapping: "temperature": { "@id": "...", "@type": "..." }
       //
-      KjNode* idNodeP        = kjLookup(memberP, "@id");
-      KjNode* typeNodeP      = kjLookup(memberP, "@type");
-      KjNode* containerNodeP = kjLookup(memberP, "@container");
+      CorNode* idNodeP       = corTreeLookup(memberP, "@id");
+      CorNode* typeNodeP     = corTreeLookup(memberP, "@type");
+      CorNode* containerNodeP = corTreeLookup(memberP, "@container");
 
-      if (idNodeP != NULL && idNodeP->type == KjString)
+      if (idNodeP != NULL && idNodeP->type == CorString)
         itemP->id = kaStrdup(kaP, idNodeP->value.s);
       else
         itemP->id = kaStrdup(kaP, memberP->name);
 
-      if (typeNodeP != NULL && typeNodeP->type == KjString)
+      if (typeNodeP != NULL && typeNodeP->type == CorString)
         itemP->type = kaStrdup(kaP, typeNodeP->value.s);
 
       // Parse @container into the enum once here — checked on every term
       // lookup during expand/compact, so strcmp would be wasteful.
       // NGSI-LD ignores @graph if present (no graph semantics).
-      if (containerNodeP != NULL && containerNodeP->type == KjString)
+      if (containerNodeP != NULL && containerNodeP->type == CorString)
       {
         const char* c = containerNodeP->value.s;
         if      (strcmp(c, "@language") == 0)  itemP->container = CorLdContainerLanguage;
@@ -247,12 +248,12 @@ CorLdContext* corLdContextFromObject(KjNode* objectNode, KAlloc* kaP, const char
 //
 // corLdContextFromTree -
 //
-CorLdContext* corLdContextFromTree(KjNode* contextNode, KAlloc* kaP, const char* baseUrl)
+CorLdContext* corLdContextFromTree(CorNode* contextNode, KAlloc* kaP, const char* baseUrl)
 {
   if (contextNode == NULL)
     return NULL;
 
-  if (contextNode->type == KjString)
+  if (contextNode->type == CorString)
   {
     //
     // IRI reference - resolve it against the URL of the @context it appeared in, then download
@@ -262,7 +263,7 @@ CorLdContext* corLdContextFromTree(KjNode* contextNode, KAlloc* kaP, const char*
     return corLdContextFromUrl(corLdUrlResolve(baseUrl, contextNode->value.s, kaP), kaP);
   }
 
-  if (contextNode->type == KjObject)
+  if (contextNode->type == CorObject)
   {
     //
     // Inline context object
@@ -270,14 +271,14 @@ CorLdContext* corLdContextFromTree(KjNode* contextNode, KAlloc* kaP, const char*
     return corLdContextFromObject(contextNode, kaP, NULL);
   }
 
-  if (contextNode->type == KjArray)
+  if (contextNode->type == CorArray)
   {
     //
     // Array of contexts
     //
     int count = 0;
 
-    for (KjNode* childP = contextNode->value.firstChildP; childP != NULL; childP = childP->next)
+    for (CorNode* childP = contextNode->value.firstChildP; childP != NULL; childP = childP->next)
       count += 1;
 
     CorLdContext* contextP = (CorLdContext*) kaAlloc(kaP, sizeof(CorLdContext));
@@ -295,7 +296,7 @@ CorLdContext* corLdContextFromTree(KjNode* contextNode, KAlloc* kaP, const char*
 
     int ix = 0;
 
-    for (KjNode* childP = contextNode->value.firstChildP; childP != NULL; childP = childP->next)
+    for (CorNode* childP = contextNode->value.firstChildP; childP != NULL; childP = childP->next)
     {
       contextP->contextV[ix] = corLdContextFromTree(childP, kaP, baseUrl);
 
