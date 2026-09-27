@@ -11,9 +11,9 @@
 #include <string.h>                                  // strlen, memset
 #include <unistd.h>                                  // usleep
 
-#include "kalloc/KAlloc.h"                           // KAlloc
-#include "kalloc/kaAlloc.h"                          // kaAlloc
-#include "kalloc/kaStrdup.h"                         // kaStrdup
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
+#include "corAlloc/corAlloc.h"                       // corAlloc
+#include "corAlloc/corAllocStrdup.h"                 // corAllocStrdup
 #include "corTree/CorNode.h"                         // CorNode
 #include "corJson/corJsonParse.h"                    // corJsonParse
 #include "corTree/corTreeLookup.h"                   // corTreeLookup
@@ -127,7 +127,7 @@ extern void corLdCacheDownloadingRemove(const char* url);
 //
 // corLdContextFromUrl -
 //
-CorLdContext* corLdContextFromUrl(const char* url, KAlloc* kaP)
+CorLdContext* corLdContextFromUrl(const char* url, CorAlloc* kaP)
 {
   //
   // Cached contexts need to outlive the request — each request arena gets
@@ -139,7 +139,7 @@ CorLdContext* corLdContextFromUrl(const char* url, KAlloc* kaP)
   // CorLdContext).
   //
   extern CorLdContextCache* corLdCacheGet(void);
-  KAlloc* storeP = corLdCacheGet()->kaP;
+  CorAlloc* storeP = corLdCacheGet()->kaP;
   if (storeP == NULL)
     storeP = kaP;
 
@@ -162,11 +162,11 @@ CorLdContext* corLdContextFromUrl(const char* url, KAlloc* kaP)
   //
   if (isOlderNgsildCoreUrl(url))
   {
-    contextP        = (CorLdContext*) kaAlloc(storeP, sizeof(CorLdContext));
+    contextP        = (CorLdContext*) corAlloc(storeP, sizeof(CorLdContext));
     if (contextP == NULL)
       return NULL;
     memset(contextP, 0, sizeof(CorLdContext));
-    contextP->url     = kaStrdup(storeP, url);
+    contextP->url     = corAllocStrdup(storeP, url);
     contextP->id      = contextP->url;
     contextP->kind    = CorLdKindImplicit;
     contextP->ignored = true;
@@ -248,7 +248,7 @@ CorLdContext* corLdContextFromUrl(const char* url, KAlloc* kaP)
   // corJsonParse is destructive — capture a pristine copy in the long-lived
   // cache allocator before parsing.
   //
-  char* bodyCopy = kaStrdup(storeP, body);
+  char* bodyCopy = corAllocStrdup(storeP, body);
 
   //
   // Step 4: Parse the JSON body
@@ -294,7 +294,7 @@ CorLdContext* corLdContextFromUrl(const char* url, KAlloc* kaP)
     contextP = corLdContextFromTree(atContextP, storeP, url);
 
     if (contextP != NULL)
-      contextP->url = kaStrdup(storeP, url);
+      contextP->url = corAllocStrdup(storeP, url);
   }
   else if (atContextP->type == CorString)
   {
@@ -325,7 +325,7 @@ CorLdContext* corLdContextFromUrl(const char* url, KAlloc* kaP)
   if (contextP != NULL)
   {
     if (contextP->url == NULL)
-      contextP->url = kaStrdup(storeP, url);
+      contextP->url = corAllocStrdup(storeP, url);
 
     if (contextP->body == NULL)
       contextP->body = bodyCopy;

@@ -9,8 +9,8 @@
 #include <stdbool.h>                                 // bool
 #include <string.h>                                  // strcmp, strlen, memcpy
 
-#include "kalloc/kaAlloc.h"                          // kaAlloc
-#include "kalloc/KAlloc.h"                           // KAlloc
+#include "corAlloc/corAlloc.h"                       // corAlloc
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
 #include "corTree/CorNode.h"                         // CorNode, CorObject
 #include "corTree/corTreeLookup.h"                   // corTreeLookup
 #include "corTree/corTreeBuilder.h"                  // corTreeChildRemove
@@ -34,7 +34,7 @@
 // The part before a registrant-declared suffix (CorLdVocabValueSuffix) is the
 // term; the suffix is appended back verbatim.
 //
-static char* vocabValueExpand(CorLdContext* contextP, CorLdItem* termItemP, char* value, KAlloc* kaP)
+static char* vocabValueExpand(CorLdContext* contextP, CorLdItem* termItemP, char* value, CorAlloc* kaP)
 {
   CorLdVocabValueSuffix suffixFn = corLdGetVocabValueSuffix();
   int                   ix       = (suffixFn != NULL) ? suffixFn(termItemP->name, value) : -1;
@@ -42,7 +42,7 @@ static char* vocabValueExpand(CorLdContext* contextP, CorLdItem* termItemP, char
   if (ix <= 0)
     return corLdExpand(contextP, value, kaP, NULL, NULL);
 
-  char* termP = (char*) kaAlloc(kaP, ix + 1);
+  char* termP = (char*) corAlloc(kaP, ix + 1);
   memcpy(termP, value, ix);
   termP[ix] = 0;
 
@@ -52,7 +52,7 @@ static char* vocabValueExpand(CorLdContext* contextP, CorLdItem* termItemP, char
 
   int   expandedLen = strlen(expandedP);
   int   suffixLen   = strlen(&value[ix]);
-  char* outP        = (char*) kaAlloc(kaP, expandedLen + suffixLen + 1);
+  char* outP        = (char*) corAlloc(kaP, expandedLen + suffixLen + 1);
 
   memcpy(outP, expandedP, expandedLen);
   memcpy(&outP[expandedLen], &value[ix], suffixLen + 1);
@@ -83,7 +83,7 @@ static bool isJsonLiteral(CorNode* objectP)
 
 
 
-static void expandObject(CorNode* objectP, CorLdContext* contextP, KAlloc* kaP, int level)
+static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP, int level)
 {
   if (objectP == NULL || objectP->type != CorObject)
     return;
@@ -377,7 +377,7 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, KAlloc* kaP, 
 // boundary sees a stray @context (it would otherwise flow into service
 // routines as if it were a user attribute — subtle stored-Property leak).
 //
-CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, KAlloc* kaP)
+CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, CorAlloc* kaP)
 {
   if (treeP == NULL)
     return NULL;

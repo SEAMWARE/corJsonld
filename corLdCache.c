@@ -10,8 +10,8 @@
 #include <string.h>                                  // strcmp, strncmp
 #include <time.h>                                    // time
 
-#include "kalloc/KAlloc.h"                            // KAlloc, kaAlloc
-#include "kalloc/kaAlloc.h"                           // kaAlloc
+#include "corAlloc/CorAlloc.h"                        // CorAlloc, corAlloc
+#include "corAlloc/corAlloc.h"                        // corAlloc
 
 #include "corJsonld/CorLdContextCache.h"               // CorLdContextCache
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTCache
@@ -275,7 +275,7 @@ int corLdCacheReapVolatile(double now)
 //
 // corLdCacheSnapshot -
 //
-void corLdCacheSnapshot(KAlloc* allocP, CorLdContext*** arrPP, int* nP)
+void corLdCacheSnapshot(CorAlloc* allocP, CorLdContext*** arrPP, int* nP)
 {
   CorLdContextCache* cacheP = corLdCacheGet();
 
@@ -291,7 +291,7 @@ void corLdCacheSnapshot(KAlloc* allocP, CorLdContext*** arrPP, int* nP)
     return;
   }
 
-  CorLdContext** arr = (CorLdContext**) kaAlloc(allocP, n * sizeof(CorLdContext*));
+  CorLdContext** arr = (CorLdContext**) corAlloc(allocP, n * sizeof(CorLdContext*));
   if (arr == NULL)
   {
     *arrPP = NULL;

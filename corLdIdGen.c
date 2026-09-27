@@ -10,8 +10,8 @@
 #include <time.h>                                    // time
 #include <pthread.h>                                 // pthread_mutex_t
 
-#include "kalloc/KAlloc.h"                           // KAlloc
-#include "kalloc/kaAlloc.h"                          // kaAlloc
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
+#include "corAlloc/corAlloc.h"                       // corAlloc
 
 #include "corJsonld/corLdIdGen.h"                      // Own interface
 
@@ -32,14 +32,14 @@ static unsigned long    idCounter = 0;
 //
 // corLdIdGenerate -
 //
-char* corLdIdGenerate(KAlloc* kaP)
+char* corLdIdGenerate(CorAlloc* kaP)
 {
   pthread_mutex_lock(&idMutex);
   unsigned long n = ++idCounter;
   pthread_mutex_unlock(&idMutex);
 
   long long     ts  = (long long) time(NULL);
-  char*         buf = (char*) kaAlloc(kaP, 64);
+  char*         buf = (char*) corAlloc(kaP, 64);
 
   if (buf != NULL)
     snprintf(buf, 64, "urn:ngsi-ld:Context:%lu-%lld", n, ts);

@@ -17,9 +17,9 @@
 #include "corJson/corJsonParse.h"                    // corJsonParse
 #include "corTree/corTreeLookup.h"                   // corTreeLookup
 #include "corJson/corJsonCreate.h"                   // corJsonCreate
-#include "kalloc/kaAlloc.h"                           // kaAlloc
-#include "kalloc/kaStrdup.h"                         // kaStrdup
-#include "kalloc/KAlloc.h"                            // KAlloc
+#include "corAlloc/corAlloc.h"                        // corAlloc
+#include "corAlloc/corAllocStrdup.h"                 // corAllocStrdup
+#include "corAlloc/CorAlloc.h"                        // CorAlloc
 #include "corHash/corHash.h"                         // CorHashTable, CorHashListItem, corHashItemAdd, corHashItemLookup
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTInit
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
@@ -172,7 +172,7 @@ CorLdContext* corLdCorePristine(void)
 // lookup table, and inserting it would collide with the real core context on
 // the same URL.
 //
-static void coreContextPristineBuild(const char* bodyStr, KAlloc* kaP)
+static void coreContextPristineBuild(const char* bodyStr, CorAlloc* kaP)
 {
   if (bodyStr == NULL)
     return;
@@ -445,7 +445,7 @@ static CorLdContext* coreNameTable(CorLdContext* contextP)
 //
 // corLdCoreTermsAdd -
 //
-int corLdCoreTermsAdd(const CorLdCoreTerm* termV, KAlloc* kaP)
+int corLdCoreTermsAdd(const CorLdCoreTerm* termV, CorAlloc* kaP)
 {
   CorLdContext* coreP = coreNameTable(corLdCoreContextP);
 
@@ -459,7 +459,7 @@ int corLdCoreTermsAdd(const CorLdCoreTerm* termV, KAlloc* kaP)
     if (corHashItemLookup(coreP->nameHT, tP->name) != NULL)
       continue;   // the core has it already - its own definition stands
 
-    CorLdItem* itemP = (CorLdItem*) kaAlloc(kaP, sizeof(CorLdItem));
+    CorLdItem* itemP = (CorLdItem*) corAlloc(kaP, sizeof(CorLdItem));
 
     if (itemP == NULL)
       return -1;
@@ -470,9 +470,9 @@ int corLdCoreTermsAdd(const CorLdCoreTerm* termV, KAlloc* kaP)
     // Born in the form coreContextRewriteToShort gives every core term: id = name,
     // so it expands to itself and is stored, matched and rendered short.
     //
-    itemP->name      = kaStrdup(kaP, tP->name);
+    itemP->name      = corAllocStrdup(kaP, tP->name);
     itemP->id        = itemP->name;
-    itemP->type      = (tP->type != NULL) ? kaStrdup(kaP, tP->type) : NULL;
+    itemP->type      = (tP->type != NULL) ? corAllocStrdup(kaP, tP->type) : NULL;
     itemP->container = CorLdContainerNone;
     itemP->flags     = coreTermFlags(itemP->name);
 
@@ -490,7 +490,7 @@ int corLdCoreTermsAdd(const CorLdCoreTerm* termV, KAlloc* kaP)
 //
 // coreContextFromEmbedded - parse the compiled-in core context body
 //
-static CorLdContext* coreContextFromEmbedded(KAlloc* kaP)
+static CorLdContext* coreContextFromEmbedded(CorAlloc* kaP)
 {
   //
   // strdup because corJsonParse is destructive
@@ -570,7 +570,7 @@ static CorLdContext* coreContextFromEmbedded(KAlloc* kaP)
 //
 // corLdInit -
 //
-int corLdInit(KAlloc* kaP, const char* coreContextUrl, CorLdDownloadFunction downloadFn, CorLdErrorFunction errorFn)
+int corLdInit(CorAlloc* kaP, const char* coreContextUrl, CorLdDownloadFunction downloadFn, CorLdErrorFunction errorFn)
 {
   if (corLdInitialized == true)
     return 0;

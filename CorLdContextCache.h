@@ -11,7 +11,7 @@
 
 #include <pthread.h>                                 // pthread_mutex_t
 
-#include "kalloc/KAlloc.h"                           // KAlloc
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 
 
@@ -44,7 +44,7 @@ typedef struct CorLdContextCache
   int              count;
   int              maxEntries;
   pthread_mutex_t  mutex;
-  KAlloc*          kaP;
+  CorAlloc*        kaP;
   char*            downloading[CORLD_MAX_DOWNLOADING];
   // The thread that put each URL in 'downloading'. A thread that finds its OWN
   // url there has recursed back into a download it is itself in the middle of -

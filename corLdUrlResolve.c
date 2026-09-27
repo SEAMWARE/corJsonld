@@ -10,8 +10,8 @@
 #include <string.h>                                  // strstr, strchr, strrchr, strlen, memcpy, strncmp
 #include <ctype.h>                                   // isalpha, isalnum
 
-#include "kalloc/KAlloc.h"                           // KAlloc
-#include "kalloc/kaAlloc.h"                          // kaAlloc
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
+#include "corAlloc/corAlloc.h"                       // corAlloc
 
 #include "corJsonld/corLdUrlResolve.h"                 // Own interface
 
@@ -57,7 +57,7 @@ static bool urlIsAbsolute(const char* ref)
 // 'ref' is returned untouched when it is already absolute, and when there is no base to resolve
 // against - an @context that arrived inline in a request body has no URL of its own.
 //
-const char* corLdUrlResolve(const char* base, const char* ref, KAlloc* kaP)
+const char* corLdUrlResolve(const char* base, const char* ref, CorAlloc* kaP)
 {
   if ((base == NULL) || (ref == NULL) || (*ref == 0) || (urlIsAbsolute(ref) == true))
     return ref;
@@ -109,7 +109,7 @@ const char* corLdUrlResolve(const char* base, const char* ref, KAlloc* kaP)
 
   int   baseLen = endP - base;
   int   refLen  = strlen(ref);
-  char* urlP    = (char*) kaAlloc(kaP, baseLen + refLen + 2);
+  char* urlP    = (char*) corAlloc(kaP, baseLen + refLen + 2);
 
   if (urlP == NULL)
     return ref;

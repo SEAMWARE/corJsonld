@@ -8,7 +8,7 @@
 //
 #include <string.h>                                  // strchr, strncmp, strlen, memcpy
 
-#include "kalloc/kaAlloc.h"                          // kaAlloc
+#include "corAlloc/corAlloc.h"                       // corAlloc
 #include "corHash/corHash.h"                         // corHashItemLookup
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
@@ -22,7 +22,7 @@
 //
 // corLdPrefixExpand -
 //
-char* corLdPrefixExpand(CorLdContext* contextP, const char* name, KAlloc* kaP)
+char* corLdPrefixExpand(CorLdContext* contextP, const char* name, CorAlloc* kaP)
 {
   if (contextP == NULL || name == NULL)
     return NULL;
@@ -129,7 +129,7 @@ char* corLdPrefixExpand(CorLdContext* contextP, const char* name, KAlloc* kaP)
   //
   int idLen     = strlen(prefixIri);
   int suffixLen = strlen(suffix);
-  char* result  = (char*) kaAlloc(kaP, idLen + suffixLen + 1);
+  char* result  = (char*) corAlloc(kaP, idLen + suffixLen + 1);
 
   if (result == NULL)
     return NULL;

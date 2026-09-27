@@ -9,9 +9,9 @@
 #include <stdbool.h>                                 // bool, true, false
 #include <string.h>                                  // strcmp, strlen
 
-#include "kalloc/kaAlloc.h"                          // kaAlloc
-#include "kalloc/kaStrdup.h"                         // kaStrdup
-#include "kalloc/KAlloc.h"                           // KAlloc
+#include "corAlloc/corAlloc.h"                       // corAlloc
+#include "corAlloc/corAllocStrdup.h"                 // corAllocStrdup
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
 #include "corTree/CorNode.h"                         // CorNode, CorValueType
 #include "corTree/corTreeLookup.h"                   // corTreeLookup
 #include "corHash/corHash.h"                         // corHashTableCreate, corHashItemAdd, corHashItemLookup
@@ -89,9 +89,9 @@ static int valueCompare(const char* iri, void* itemP)
 //
 // corLdContextFromObject -
 //
-CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const char* url)
+CorLdContext* corLdContextFromObject(CorNode* objectNode, CorAlloc* kaP, const char* url)
 {
-  CorLdContext* contextP = (CorLdContext*) kaAlloc(kaP, sizeof(CorLdContext));
+  CorLdContext* contextP = (CorLdContext*) corAlloc(kaP, sizeof(CorLdContext));
 
   if (contextP == NULL)
     return NULL;
@@ -106,7 +106,7 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const cha
 
   if (url != NULL)
   {
-    contextP->url = kaStrdup(kaP, url);
+    contextP->url = corAllocStrdup(kaP, url);
     contextP->id  = contextP->url;
   }
 
@@ -138,13 +138,13 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const cha
     if (strcmp(memberP->name, "@vocab") == 0)
     {
       if (memberP->type == CorString)
-        contextP->vocab = kaStrdup(kaP, memberP->value.s);
+        contextP->vocab = corAllocStrdup(kaP, memberP->value.s);
 
       memberP = memberP->next;
       continue;
     }
 
-    CorLdItem* itemP = (CorLdItem*) kaAlloc(kaP, sizeof(CorLdItem));
+    CorLdItem* itemP = (CorLdItem*) corAlloc(kaP, sizeof(CorLdItem));
 
     if (itemP == NULL)
     {
@@ -152,7 +152,7 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const cha
       continue;
     }
 
-    itemP->name = kaStrdup(kaP, memberP->name);
+    itemP->name = corAllocStrdup(kaP, memberP->name);
     itemP->id   = NULL;
     itemP->type = NULL;
 
@@ -161,7 +161,7 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const cha
       //
       // Simple mapping: "temperature": "https://..."
       //
-      itemP->id = kaStrdup(kaP, memberP->value.s);
+      itemP->id = corAllocStrdup(kaP, memberP->value.s);
     }
     else if (memberP->type == CorObject)
     {
@@ -173,12 +173,12 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const cha
       CorNode* containerNodeP = corTreeLookup(memberP, "@container");
 
       if (idNodeP != NULL && idNodeP->type == CorString)
-        itemP->id = kaStrdup(kaP, idNodeP->value.s);
+        itemP->id = corAllocStrdup(kaP, idNodeP->value.s);
       else
-        itemP->id = kaStrdup(kaP, memberP->name);
+        itemP->id = corAllocStrdup(kaP, memberP->name);
 
       if (typeNodeP != NULL && typeNodeP->type == CorString)
-        itemP->type = kaStrdup(kaP, typeNodeP->value.s);
+        itemP->type = corAllocStrdup(kaP, typeNodeP->value.s);
 
       // Parse @container into the enum once here — checked on every term
       // lookup during expand/compact, so strcmp would be wasteful.
@@ -198,7 +198,7 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const cha
     }
     else
     {
-      itemP->id = kaStrdup(kaP, memberP->name);
+      itemP->id = corAllocStrdup(kaP, memberP->name);
     }
 
     corHashItemAdd(contextP->nameHT, itemP->name, itemP);
@@ -248,7 +248,7 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const cha
 //
 // corLdContextFromTree -
 //
-CorLdContext* corLdContextFromTree(CorNode* contextNode, KAlloc* kaP, const char* baseUrl)
+CorLdContext* corLdContextFromTree(CorNode* contextNode, CorAlloc* kaP, const char* baseUrl)
 {
   if (contextNode == NULL)
     return NULL;
@@ -281,7 +281,7 @@ CorLdContext* corLdContextFromTree(CorNode* contextNode, KAlloc* kaP, const char
     for (CorNode* childP = contextNode->value.head; childP != NULL; childP = childP->next)
       count += 1;
 
-    CorLdContext* contextP = (CorLdContext*) kaAlloc(kaP, sizeof(CorLdContext));
+    CorLdContext* contextP = (CorLdContext*) corAlloc(kaP, sizeof(CorLdContext));
 
     if (contextP == NULL)
       return NULL;
@@ -289,7 +289,7 @@ CorLdContext* corLdContextFromTree(CorNode* contextNode, KAlloc* kaP, const char
     memset(contextP, 0, sizeof(CorLdContext));
     contextP->isArray  = true;
     contextP->contexts = count;
-    contextP->contextV = (CorLdContext**) kaAlloc(kaP, count * sizeof(CorLdContext*));
+    contextP->contextV = (CorLdContext**) corAlloc(kaP, count * sizeof(CorLdContext*));
 
     if (contextP->contextV == NULL)
       return NULL;
