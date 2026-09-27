@@ -14,7 +14,7 @@
 #include "kalloc/KAlloc.h"                           // KAlloc
 #include "corTree/CorNode.h"                         // CorNode, CorValueType
 #include "corTree/corTreeLookup.h"                   // corTreeLookup
-#include "khash/khash.h"                             // khashTableCreate, khashItemAdd, khashItemLookup
+#include "corHash/corHash.h"                         // corHashTableCreate, corHashItemAdd, corHashItemLookup
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTContextParse
@@ -98,8 +98,8 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const cha
 
   memset(contextP, 0, sizeof(CorLdContext));
 
-  contextP->nameHT  = khashTableCreate(kaP, nameHashCode, nameCompare, 128);
-  contextP->valueHT = khashTableCreate(kaP, valueHashCode, valueCompare, 128);
+  contextP->nameHT  = corHashTableCreate(kaP, nameHashCode, nameCompare, 128);
+  contextP->valueHT = corHashTableCreate(kaP, valueHashCode, valueCompare, 128);
 
   if (contextP->nameHT == NULL || contextP->valueHT == NULL)
     return NULL;
@@ -201,7 +201,7 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const cha
       itemP->id = kaStrdup(kaP, memberP->name);
     }
 
-    khashItemAdd(contextP->nameHT, itemP->name, itemP);
+    corHashItemAdd(contextP->nameHT, itemP->name, itemP);
     memberP = memberP->next;
   }
 
@@ -210,7 +210,7 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const cha
   //
   for (int slot = 0; slot < contextP->nameHT->arraySize; slot++)
   {
-    KHashListItem* listItemP = contextP->nameHT->array[slot];
+    CorHashListItem* listItemP = contextP->nameHT->array[slot];
 
     while (listItemP != NULL)
     {
@@ -232,7 +232,7 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const cha
             itemP->id = expanded;
         }
 
-        khashItemAdd(contextP->valueHT, itemP->id, itemP);
+        corHashItemAdd(contextP->valueHT, itemP->id, itemP);
       }
 
       listItemP = listItemP->next;

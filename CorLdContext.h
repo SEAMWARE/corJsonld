@@ -10,7 +10,7 @@
 #define CORLD_CONTEXT_H
 
 #include <stdbool.h>                                 // bool
-#include "khash/khash.h"                             // KHashTable
+#include "corHash/corHash.h"                         // CorHashTable
 
 
 
@@ -37,8 +37,8 @@ typedef struct CorLdContext
   char*                      id;          // Identifier (URL or generated)
   char*                      body;        // Raw JSON body as received (may be NULL)
   CorLdContextKind            kind;
-  KHashTable*                nameHT;      // name -> CorLdItem  (expansion)
-  KHashTable*                valueHT;     // IRI  -> CorLdItem  (compaction)
+  CorHashTable*              nameHT;      // name -> CorLdItem  (expansion)
+  CorHashTable*              valueHT;     // IRI  -> CorLdItem  (compaction)
   char*                      vocab;       // @vocab value, or NULL
   struct CorLdContext**        contextV;    // child contexts for arrays
   int                        contexts;    // count of child contexts
