@@ -113,7 +113,7 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const cha
   //
   // Pass 1: Build nameHT from object members
   //
-  CorNode* memberP = objectNode->value.firstChildP;
+  CorNode* memberP = objectNode->value.head;
 
   while (memberP != NULL)
   {
@@ -278,7 +278,7 @@ CorLdContext* corLdContextFromTree(CorNode* contextNode, KAlloc* kaP, const char
     //
     int count = 0;
 
-    for (CorNode* childP = contextNode->value.firstChildP; childP != NULL; childP = childP->next)
+    for (CorNode* childP = contextNode->value.head; childP != NULL; childP = childP->next)
       count += 1;
 
     CorLdContext* contextP = (CorLdContext*) kaAlloc(kaP, sizeof(CorLdContext));
@@ -296,7 +296,7 @@ CorLdContext* corLdContextFromTree(CorNode* contextNode, KAlloc* kaP, const char
 
     int ix = 0;
 
-    for (CorNode* childP = contextNode->value.firstChildP; childP != NULL; childP = childP->next)
+    for (CorNode* childP = contextNode->value.head; childP != NULL; childP = childP->next)
     {
       contextP->contextV[ix] = corLdContextFromTree(childP, kaP, baseUrl);
 

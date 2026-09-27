@@ -93,7 +93,7 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, KAlloc* kaP, 
 
   CorLdKeywordCheck keywordCheckP = corLdGetKeywordCheck();
 
-  for (CorNode* childP = objectP->value.firstChildP; childP != NULL; childP = childP->next)
+  for (CorNode* childP = objectP->value.head; childP != NULL; childP = childP->next)
   {
     if (childP->name == NULL)
       continue;
@@ -195,7 +195,7 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, KAlloc* kaP, 
             }
             else if (atValueP->type == CorArray)
             {
-              for (CorNode* elemP = atValueP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+              for (CorNode* elemP = atValueP->value.head; elemP != NULL; elemP = elemP->next)
                 if (elemP->type == CorString && elemP->value.s != NULL && elemP->value.s[0] != '\0')
                 {
                   char* ev = corLdExpand(contextP, elemP->value.s, kaP, NULL, NULL);
@@ -254,7 +254,7 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, KAlloc* kaP, 
         }
         else if (childP->type == CorArray)
         {
-          for (CorNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+          for (CorNode* elemP = childP->value.head; elemP != NULL; elemP = elemP->next)
           {
             if (elemP->type == CorString && elemP->value.s != NULL && elemP->value.s[0] != '\0')
             {
@@ -286,7 +286,7 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, KAlloc* kaP, 
           const char* shortName = (termItemP->name != NULL) ? termItemP->name : childP->name;
           if (childP->type == CorArray)
           {
-            for (CorNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+            for (CorNode* elemP = childP->value.head; elemP != NULL; elemP = elemP->next)
             {
               if (elemP->type == CorObject || elemP->type == CorArray)
                 continue;
@@ -316,7 +316,7 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, KAlloc* kaP, 
       }
       else if (childP->type == CorArray)
       {
-        for (CorNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+        for (CorNode* elemP = childP->value.head; elemP != NULL; elemP = elemP->next)
         {
           if (elemP->type == CorString)
           {
@@ -341,7 +341,7 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, KAlloc* kaP, 
       expandObject(childP, contextP, kaP, level + 1);
     else if (childP->type == CorArray)
     {
-      for (CorNode* itemP = childP->value.firstChildP; itemP != NULL; itemP = itemP->next)
+      for (CorNode* itemP = childP->value.head; itemP != NULL; itemP = itemP->next)
         expandObject(itemP, contextP, kaP, level + 1);
     }
   }
@@ -408,7 +408,7 @@ CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, KAlloc
   {
     CorLdContext* firstContextP = NULL;
 
-    for (CorNode* itemP = treeP->value.firstChildP; itemP != NULL; itemP = itemP->next)
+    for (CorNode* itemP = treeP->value.head; itemP != NULL; itemP = itemP->next)
     {
       if (itemP->type != CorObject)
         continue;
