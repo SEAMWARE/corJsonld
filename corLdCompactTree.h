@@ -9,7 +9,7 @@
 #ifndef CORLD_COMPACT_TREE_H
 #define CORLD_COMPACT_TREE_H
 
-#include "kjson/KjNode.h"                            // KjNode
+#include "corTree/CorNode.h"                         // CorNode
 #include "corJsonld/CorLdContext.h"                    // CorLdContext
 
 
@@ -20,7 +20,7 @@
 //
 // Uses the core context to compact IRIs back to short names.
 //
-extern void corLdCompactTree(KjNode* treeP);
+extern void corLdCompactTree(CorNode* treeP);
 
 // -----------------------------------------------------------------------------
 //
@@ -30,6 +30,6 @@ extern void corLdCompactTree(KjNode* treeP);
 // context referenced by a CSR's jsonldContext, so the outbound body
 // uses the target broker's vocabulary).
 //
-extern void corLdCompactTreeWith(KjNode* treeP, CorLdContext* ctxP);
+extern void corLdCompactTreeWith(CorNode* treeP, CorLdContext* ctxP);
 
 #endif  // CORLD_COMPACT_TREE_H

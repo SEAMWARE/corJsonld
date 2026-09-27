@@ -56,7 +56,7 @@ typedef struct CorLdItem
                              // For Language / Index, the term's value-object
                              // keys are opaque and must not be expanded as terms.
   unsigned char  flags;      // KJF_* bits (corLdExpand.h), classified once when the
-                             // core context is loaded and copied onto each KjNode
+                             // core context is loaded and copied onto each CorNode
                              // during expansion — so downstream is a bit test, not strcmp.
 } CorLdItem;
 

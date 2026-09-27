@@ -10,7 +10,7 @@
 #define CORLD_EXPAND_TREE_H
 
 #include "kalloc/KAlloc.h"                           // KAlloc
-#include "kjson/KjNode.h"                            // KjNode
+#include "corTree/CorNode.h"                         // CorNode
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 
 
@@ -32,6 +32,6 @@
 // chain this into corNgsild.contextP so the rest of the pipeline reflects
 // any in-body context override.
 //
-extern CorLdContext* corLdExpandTree(KjNode* treeP, CorLdContext* userContextP, KAlloc* kaP);
+extern CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, KAlloc* kaP);
 
 #endif  // CORLD_EXPAND_TREE_H

@@ -14,10 +14,10 @@
 #include "kalloc/KAlloc.h"                           // KAlloc
 #include "kalloc/kaAlloc.h"                          // kaAlloc
 #include "kalloc/kaStrdup.h"                         // kaStrdup
-#include "kjson/KjNode.h"                            // KjNode
-#include "kjson/kjParse.h"                           // kjParse
-#include "kjson/kjLookup.h"                          // kjLookup
-#include "kjson/kjBufferCreate.h"                    // kjBufferCreate
+#include "corTree/CorNode.h"                         // CorNode
+#include "corJson/corJsonParse.h"                    // corJsonParse
+#include "corTree/corTreeLookup.h"                   // corTreeLookup
+#include "corJson/corJsonCreate.h"                   // corJsonCreate
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTDownload
 #include "corJsonld/CorLdContextCache.h"               // CorLdContextCache (for corLdCacheGet()->kaP)
@@ -245,7 +245,7 @@ CorLdContext* corLdContextFromUrl(const char* url, KAlloc* kaP)
 
   //
   // Preserve the downloaded body for GET /jsonldContexts/{id}.
-  // kjParse is destructive — capture a pristine copy in the long-lived
+  // corJsonParse is destructive — capture a pristine copy in the long-lived
   // cache allocator before parsing.
   //
   char* bodyCopy = kaStrdup(storeP, body);
@@ -256,10 +256,10 @@ CorLdContext* corLdContextFromUrl(const char* url, KAlloc* kaP)
   // The parse tree is only needed while we build the CorLdContext; the
   // caller's kaP (request arena) is fine for that.
   //
-  Kjson  kjson;
-  Kjson* kjsonP = kjBufferCreate(&kjson, kaP);
+  CorJson corJson;
+  CorJson* corJsonP = corJsonCreate(&corJson, kaP);
 
-  KjNode* responseP = kjParse(kjsonP, body);
+  CorNode* responseP = corJsonParse(corJsonP, body);
 
   if (responseP == NULL)
   {
@@ -271,7 +271,7 @@ CorLdContext* corLdContextFromUrl(const char* url, KAlloc* kaP)
   //
   // Step 5: Find @context in the parsed tree
   //
-  KjNode* atContextP = kjLookup(responseP, "@context");
+  CorNode* atContextP = corTreeLookup(responseP, "@context");
 
   if (atContextP == NULL)
   {
@@ -285,18 +285,18 @@ CorLdContext* corLdContextFromUrl(const char* url, KAlloc* kaP)
   //
   contextP = NULL;
 
-  if (atContextP->type == KjObject)
+  if (atContextP->type == CorObject)
   {
     contextP = corLdContextFromObject(atContextP, storeP, url);
   }
-  else if (atContextP->type == KjArray)
+  else if (atContextP->type == CorArray)
   {
     contextP = corLdContextFromTree(atContextP, storeP, url);
 
     if (contextP != NULL)
       contextP->url = kaStrdup(storeP, url);
   }
-  else if (atContextP->type == KjString)
+  else if (atContextP->type == CorString)
   {
     //
     // Redirect: @context is a URL string - follow it

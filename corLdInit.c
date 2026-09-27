@@ -13,12 +13,13 @@
 #include <pthread.h>                                 // pthread_mutex_init, pthread_mutex_destroy
 
 #include "ktrace/kTrace.h"                            // KT_E
-#include "kjson/KjNode.h"                            // KjNode
-#include "kjson/kjParse.h"                           // kjParse
-#include "kjson/kjLookup.h"                          // kjLookup
-#include "kjson/kjBufferCreate.h"                    // kjBufferCreate
+#include "corTree/CorNode.h"                         // CorNode
+#include "corJson/corJsonParse.h"                    // corJsonParse
+#include "corTree/corTreeLookup.h"                   // corTreeLookup
+#include "corJson/corJsonCreate.h"                   // corJsonCreate
 #include "kalloc/kaAlloc.h"                           // kaAlloc
 #include "kalloc/kaStrdup.h"                         // kaStrdup
+#include "kalloc/KAlloc.h"                            // KAlloc
 #include "khash/khash.h"                             // KHashTable, KHashListItem, khashItemAdd, khashItemLookup
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTInit
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
@@ -176,18 +177,18 @@ static void coreContextPristineBuild(const char* bodyStr, KAlloc* kaP)
   if (bodyStr == NULL)
     return;
 
-  char* body = strdup(bodyStr);      // kjParse is destructive
+  char* body = strdup(bodyStr);      // corJsonParse is destructive
 
   if (body == NULL)
     return;
 
-  Kjson   kjson;
-  Kjson*  kjsonP = kjBufferCreate(&kjson, kaP);
-  KjNode* treeP  = kjParse(kjsonP, body);
+  CorJson corJson;
+  CorJson* corJsonP = corJsonCreate(&corJson, kaP);
+  CorNode* treeP = corJsonParse(corJsonP, body);
 
   if (treeP != NULL)
   {
-    KjNode* atContextP = kjLookup(treeP, "@context");
+    CorNode* atContextP = corTreeLookup(treeP, "@context");
 
     if (atContextP != NULL)
     {
@@ -352,7 +353,7 @@ static void coreContextRewriteToShort(CorLdContext* contextP)
 //
 // coreTermFlags - the KJF_* bits for a core-context term, by short name
 //
-// Classified once (at core-context load) and copied onto every KjNode whose
+// Classified once (at core-context load) and copied onto every CorNode whose
 // term resolves to this item — so the broker tells structural members from
 // sub-attributes (and which value-key) with a bit test, never a strcmp chain.
 //
@@ -492,17 +493,17 @@ int corLdCoreTermsAdd(const CorLdCoreTerm* termV, KAlloc* kaP)
 static CorLdContext* coreContextFromEmbedded(KAlloc* kaP)
 {
   //
-  // strdup because kjParse is destructive
+  // strdup because corJsonParse is destructive
   //
   char* body = strdup(corLdCoreContextBody);
 
   if (body == NULL)
     return NULL;
 
-  Kjson  kjson;
-  Kjson* kjsonP = kjBufferCreate(&kjson, kaP);
+  CorJson corJson;
+  CorJson* corJsonP = corJsonCreate(&corJson, kaP);
 
-  KjNode* treeP = kjParse(kjsonP, body);
+  CorNode* treeP = corJsonParse(corJsonP, body);
 
   if (treeP == NULL)
   {
@@ -510,7 +511,7 @@ static CorLdContext* coreContextFromEmbedded(KAlloc* kaP)
     return NULL;
   }
 
-  KjNode* atContextP = kjLookup(treeP, "@context");
+  CorNode* atContextP = corTreeLookup(treeP, "@context");
 
   if (atContextP == NULL)
   {

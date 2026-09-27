@@ -11,8 +11,9 @@
 
 #include "kalloc/kaAlloc.h"                          // kaAlloc
 #include "kalloc/kaStrdup.h"                         // kaStrdup
+#include "kalloc/KAlloc.h"                           // KAlloc
 #include "khash/khash.h"                             // khashItemLookup
-#include "kjson/KjNode.h"                            // KjNode
+#include "corTree/CorNode.h"                         // CorNode
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTExpand
@@ -379,12 +380,12 @@ char* corLdExpand(CorLdContext* contextP, const char* name, KAlloc* kaP, CorLdIt
 //
 // corLdValueObjectIs - true if obj is a JSON-LD value object (has @value or @type)
 //
-bool corLdValueObjectIs(KjNode* objP)
+bool corLdValueObjectIs(CorNode* objP)
 {
-  if ((objP == NULL) || (objP->type != KjObject))
+  if ((objP == NULL) || (objP->type != CorObject))
     return false;
 
-  for (KjNode* childP = objP->value.firstChildP; childP != NULL; childP = childP->next)
+  for (CorNode* childP = objP->value.firstChildP; childP != NULL; childP = childP->next)
   {
     if (childP->name == NULL)
       continue;
@@ -411,12 +412,12 @@ bool corLdValueObjectIs(KjNode* objP)
 //
 // On violation returns false and points *detailP at a static reason string.
 //
-bool corLdValueObjectCheck(KjNode* objP, char** detailP)
+bool corLdValueObjectCheck(CorNode* objP, char** detailP)
 {
-  KjNode* atValueP = NULL;
-  KjNode* atTypeP  = NULL;
+  CorNode* atValueP = NULL;
+  CorNode* atTypeP = NULL;
 
-  for (KjNode* childP = objP->value.firstChildP; childP != NULL; childP = childP->next)
+  for (CorNode* childP = objP->value.firstChildP; childP != NULL; childP = childP->next)
   {
     if      ((childP->name != NULL) && (strcmp(childP->name, "@value") == 0))  atValueP = childP;
     else if ((childP->name != NULL) && (strcmp(childP->name, "@type")  == 0))  atTypeP  = childP;
@@ -433,7 +434,7 @@ bool corLdValueObjectCheck(KjNode* objP, char** detailP)
     return false;
   }
 
-  if ((atTypeP != NULL) && (atTypeP->type != KjString))
+  if ((atTypeP != NULL) && (atTypeP->type != CorString))
   {
     *detailP = (char*) "the '@type' of a JSON-LD value object must be a string";
     return false;
