@@ -10,7 +10,7 @@
 #define CORLD_EXPAND_H
 
 #include <stdbool.h>                                 // bool
-#include "kalloc/KAlloc.h"                           // KAlloc
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
 #include "corTree/CorNode.h"                         // CorNode
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
@@ -157,7 +157,7 @@ extern CorLdVocabValueSuffix corLdGetVocabValueSuffix(void);
 //
 // corLdExpand -
 //
-extern char* corLdExpand(CorLdContext* contextP, const char* name, KAlloc* kaP, CorLdItem** itemPP, bool* coreContextP);
+extern char* corLdExpand(CorLdContext* contextP, const char* name, CorAlloc* kaP, CorLdItem** itemPP, bool* coreContextP);
 
 
 

@@ -9,7 +9,7 @@
 #ifndef CORLD_INIT_H
 #define CORLD_INIT_H
 
-#include "kalloc/KAlloc.h"                           // KAlloc
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 
 
@@ -57,7 +57,7 @@ typedef void (*CorLdErrorFunction)(int status, const char* title, const char* de
 //
 // corLdInit -
 //
-extern int corLdInit(KAlloc* kaP, const char* coreContextUrl, CorLdDownloadFunction downloadFn, CorLdErrorFunction errorFn);
+extern int corLdInit(CorAlloc* kaP, const char* coreContextUrl, CorLdDownloadFunction downloadFn, CorLdErrorFunction errorFn);
 
 
 
@@ -97,7 +97,7 @@ typedef struct CorLdCoreTerm
 //
 // termV ends with a { NULL, NULL } entry. Returns the number added, -1 on error.
 //
-extern int corLdCoreTermsAdd(const CorLdCoreTerm* termV, KAlloc* kaP);
+extern int corLdCoreTermsAdd(const CorLdCoreTerm* termV, CorAlloc* kaP);
 
 
 

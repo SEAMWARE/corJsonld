@@ -8,7 +8,7 @@
 //
 #include <string.h>                                  // strncmp, strlen
 
-#include "kalloc/kaAlloc.h"                          // kaAlloc
+#include "corAlloc/corAlloc.h"                       // corAlloc
 #include "corHash/corHash.h"                         // corHashItemLookup, CorHashListItem
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
@@ -228,7 +228,7 @@ static const char* prefixCompactBuild(const char* iri, const char* name, int idL
   const char* suffix = iri + idLen;
   int nameLen   = strlen(name);
   int suffixLen = strlen(suffix);
-  char* out = (char*) kaAlloc(&corRest.kalloc, nameLen + 1 + suffixLen + 1);
+  char* out = (char*) corAlloc(&corRest.kalloc, nameLen + 1 + suffixLen + 1);
   memcpy(out, name, nameLen);
   out[nameLen] = ':';
   memcpy(out + nameLen + 1, suffix, suffixLen + 1);

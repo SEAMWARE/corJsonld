@@ -11,7 +11,7 @@
 
 #include <stdbool.h>                                 // bool
 
-#include "kalloc/KAlloc.h"                            // KAlloc
+#include "corAlloc/CorAlloc.h"                        // CorAlloc
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 
 
@@ -63,6 +63,6 @@ extern int corLdCacheReapVolatile(double now);
 // *arrPP is set to the array; *nP is set to the count. Both are zero on
 // empty cache.
 //
-extern void corLdCacheSnapshot(KAlloc* allocP, CorLdContext*** arrPP, int* nP);
+extern void corLdCacheSnapshot(CorAlloc* allocP, CorLdContext*** arrPP, int* nP);
 
 #endif

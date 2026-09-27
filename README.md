@@ -69,14 +69,14 @@ typedef struct CorLdContext {
 typedef char* (*CorLdDownloadFunction)(const char* url, int* statusCodeP);
 ```
 
-`KAlloc` comes from the k-lib `kalloc`, `CorHashTable` from `corHash`, `CorNode` from
+`CorAlloc` comes from `corAlloc`, `CorHashTable` from `corHash`, `CorNode` from
 corTree and `CorJson` from corJson. corJsonld allocates onto a caller-provided
-`KAlloc` arena — it does not own request-scoped memory.
+`CorAlloc` arena — it does not own request-scoped memory.
 
 ### Lifecycle
 
 ```c
-int             corLdInit(KAlloc* kaP, const char* coreContextUrl, CorLdDownloadFunction downloadFn);
+int             corLdInit(CorAlloc* kaP, const char* coreContextUrl, CorLdDownloadFunction downloadFn);
 void            corLdCleanup(void);
 CorLdContext*    corLdCoreContext(void);
 ```
@@ -88,9 +88,9 @@ needed. `corLdCoreContext()` returns the loaded core.
 ### Parsing contexts
 
 ```c
-CorLdContext*    corLdContextFromTree(CorNode* contextNode, KAlloc* kaP);
-CorLdContext*    corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const char* url);
-CorLdContext*    corLdContextFromUrl(const char* url, KAlloc* kaP);   // uses cache + download callback
+CorLdContext*    corLdContextFromTree(CorNode* contextNode, CorAlloc* kaP);
+CorLdContext*    corLdContextFromObject(CorNode* objectNode, CorAlloc* kaP, const char* url);
+CorLdContext*    corLdContextFromUrl(const char* url, CorAlloc* kaP); // uses cache + download callback
 ```
 
 `corLdContextFromTree` accepts the value of a `@context` (string, object, or array);
@@ -100,10 +100,10 @@ downloads (or cache-hits) a remote context.
 ### Expansion / compaction
 
 ```c
-char*           corLdExpand(CorLdContext* contextP, const char* name, KAlloc* kaP,
+char*           corLdExpand(CorLdContext* contextP, const char* name, CorAlloc* kaP,
                            CorLdItem** itemPP, bool* coreContextP);
 const char*     corLdCompact(CorLdContext* contextP, const char* iri);
-char*           corLdPrefixExpand(CorLdContext* contextP, const char* name, KAlloc* kaP);
+char*           corLdPrefixExpand(CorLdContext* contextP, const char* name, CorAlloc* kaP);
 bool            corLdAlreadyExpanded(const char* value);   // true if "urn:"/"http://"/"https://"
 ```
 
@@ -114,7 +114,7 @@ then reverse lookup in the user context, then the core.
 ### Whole-tree operations
 
 ```c
-CorLdContext*    corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, KAlloc* kaP);
+CorLdContext*    corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, CorAlloc* kaP);
 void            corLdCompactTree(CorNode* treeP);                      // against the core context
 void            corLdCompactTreeWith(CorNode* treeP, CorLdContext* ctxP); // against a specific context
 ```
@@ -130,7 +130,7 @@ CorLdContext*    corLdCacheLookup(const char* url);
 void            corLdCacheInsert(CorLdContext* contextP);
 CorLdContext*    corLdCacheRemove(const char* idOrUrl);
 int             corLdCacheReapVolatile(double now);        // drop expired volatile contexts
-void            corLdCacheSnapshot(KAlloc* allocP, CorLdContext*** arrPP, int* nP);
+void            corLdCacheSnapshot(CorAlloc* allocP, CorLdContext*** arrPP, int* nP);
 ```
 
 Thread-safe (mutex-protected). LRU eviction when full. Volatile contexts (minted so
@@ -140,7 +140,7 @@ reaped at `expiresAt`.
 ## Usage example
 
 ```c
-#include "kalloc/kalloc.h"          // KAlloc, kaBufferInit
+#include "corAlloc/corAlloc.h"      // CorAlloc, corAllocBufferInit
 #include "corJson/corJsonCreate.h"  // CorJson, corJsonCreate
 #include "corJson/corJsonParse.h"   // corJsonParse
 #include "corJsonld/corJsonld.h"
@@ -155,10 +155,10 @@ static char* myDownload(const char* url, int* statusCodeP)
 
 int main(void)
 {
-  // 1. A kalloc arena
-  KAlloc ka;
+  // 1. A corAlloc arena
+  CorAlloc ka;
   char   buf[65536];
-  kaBufferInit(&ka, buf, sizeof(buf), 65536, NULL, "jsonld");
+  corAllocBufferInit(&ka, buf, sizeof(buf), 65536, NULL, "jsonld");
 
   // 2. Init the library (NULL coreContextUrl → embedded NGSI-LD core)
   corLdInit(&ka, NULL, myDownload);
@@ -197,7 +197,7 @@ k-lib repos must be present (the build references `../<lib>/lib<lib>.a`).
 
 Sibling repos (one `.a` each):
 
-- [`kalloc`](https://gitlab.com/kzangeli/kalloc) — arena allocator (`KAlloc`)
+- [`corAlloc`](https://github.com/SEAMWARE/corAlloc) — arena allocator (`CorAlloc`)
 - [`corTree`](https://github.com/SEAMWARE/corTree) — the tree (`CorNode`)
 - [`corJson`](https://github.com/SEAMWARE/corJson) — JSON parsing and rendering (`CorJson`)
 - [`kbase`](https://gitlab.com/kzangeli/kbase) — core utilities

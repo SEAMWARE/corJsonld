@@ -14,7 +14,7 @@
 // Location header.
 //
 
-#include "kalloc/KAlloc.h"                           // KAlloc
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
 
 
 
@@ -28,6 +28,6 @@
 // counter restarts at 1 on process boot. Only uniqueness within a running
 // broker is required since the cache itself is not persisted (Phase B).
 //
-extern char* corLdIdGenerate(KAlloc* kaP);
+extern char* corLdIdGenerate(CorAlloc* kaP);
 
 #endif

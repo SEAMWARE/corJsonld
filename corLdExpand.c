@@ -9,9 +9,9 @@
 #include <stdbool.h>                                 // bool, true, false
 #include <string.h>                                  // strncmp, strchr, strlen
 
-#include "kalloc/kaAlloc.h"                          // kaAlloc
-#include "kalloc/kaStrdup.h"                         // kaStrdup
-#include "kalloc/KAlloc.h"                           // KAlloc
+#include "corAlloc/corAlloc.h"                       // corAlloc
+#include "corAlloc/corAllocStrdup.h"                 // corAllocStrdup
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
 #include "corHash/corHash.h"                         // corHashItemLookup
 #include "corTree/CorNode.h"                         // CorNode
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
@@ -207,7 +207,7 @@ const char* contextVocab(CorLdContext* contextP)
 //
 // corLdExpand -
 //
-char* corLdExpand(CorLdContext* contextP, const char* name, KAlloc* kaP, CorLdItem** itemPP, bool* coreContextP)
+char* corLdExpand(CorLdContext* contextP, const char* name, CorAlloc* kaP, CorLdItem** itemPP, bool* coreContextP)
 {
   if (itemPP != NULL)
     *itemPP = NULL;
@@ -364,7 +364,7 @@ char* corLdExpand(CorLdContext* contextP, const char* name, KAlloc* kaP, CorLdIt
     return NULL;
 
   int   nameLen  = (int) strlen(name);
-  char* expanded = (char*) kaAlloc(kaP, corLdCoreVocabLen + nameLen + 1);
+  char* expanded = (char*) corAlloc(kaP, corLdCoreVocabLen + nameLen + 1);
 
   if (expanded == NULL)
     return NULL;

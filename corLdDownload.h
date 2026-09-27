@@ -9,7 +9,7 @@
 #ifndef CORLD_DOWNLOAD_H
 #define CORLD_DOWNLOAD_H
 
-#include "kalloc/KAlloc.h"                           // KAlloc
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 
 
@@ -18,7 +18,7 @@
 //
 // corLdContextFromUrl -
 //
-extern CorLdContext* corLdContextFromUrl(const char* url, KAlloc* kaP);
+extern CorLdContext* corLdContextFromUrl(const char* url, CorAlloc* kaP);
 
 
 

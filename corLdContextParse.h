@@ -9,7 +9,7 @@
 #ifndef CORLD_CONTEXT_PARSE_H
 #define CORLD_CONTEXT_PARSE_H
 
-#include "kalloc/KAlloc.h"                           // KAlloc
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
 #include "corTree/CorNode.h"                         // CorNode
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 
@@ -19,7 +19,7 @@
 //
 // corLdContextFromTree -
 //
-extern CorLdContext* corLdContextFromTree(CorNode* contextNode, KAlloc* kaP, const char* baseUrl);
+extern CorLdContext* corLdContextFromTree(CorNode* contextNode, CorAlloc* kaP, const char* baseUrl);
 
 
 
@@ -27,6 +27,6 @@ extern CorLdContext* corLdContextFromTree(CorNode* contextNode, KAlloc* kaP, con
 //
 // corLdContextFromObject -
 //
-extern CorLdContext* corLdContextFromObject(CorNode* objectNode, KAlloc* kaP, const char* url);
+extern CorLdContext* corLdContextFromObject(CorNode* objectNode, CorAlloc* kaP, const char* url);
 
 #endif

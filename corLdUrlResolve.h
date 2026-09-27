@@ -9,7 +9,7 @@
 #ifndef CORLD_URL_RESOLVE_H
 #define CORLD_URL_RESOLVE_H
 
-#include "kalloc/KAlloc.h"                           // KAlloc
+#include "corAlloc/CorAlloc.h"                       // CorAlloc
 
 
 
@@ -17,6 +17,6 @@
 //
 // corLdUrlResolve - resolve a relative IRI reference against a base URL
 //
-extern const char* corLdUrlResolve(const char* base, const char* ref, KAlloc* kaP);
+extern const char* corLdUrlResolve(const char* base, const char* ref, CorAlloc* kaP);
 
 #endif
