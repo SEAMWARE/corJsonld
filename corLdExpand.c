@@ -12,7 +12,7 @@
 #include "kalloc/kaAlloc.h"                          // kaAlloc
 #include "kalloc/kaStrdup.h"                         // kaStrdup
 #include "kalloc/KAlloc.h"                           // KAlloc
-#include "khash/khash.h"                             // khashItemLookup
+#include "corHash/corHash.h"                         // corHashItemLookup
 #include "corTree/CorNode.h"                         // CorNode
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
@@ -167,7 +167,7 @@ CorLdItem* contextItemLookup(CorLdContext* contextP, const char* name)
   if (contextP->nameHT == NULL)
     return NULL;
 
-  return (CorLdItem*) khashItemLookup(contextP->nameHT, name);
+  return (CorLdItem*) corHashItemLookup(contextP->nameHT, name);
 }
 
 

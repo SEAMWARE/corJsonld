@@ -85,11 +85,11 @@ LIB_DEPS      = $(addprefix $(OBJDIR)/,$(LIB_SOURCES:.c=.d))
 #
 FLAGSTAMP    := $(OBJDIR)/.flags
 
-SO_LDFLAGS    = -L../kalloc -L../corJson -L../corTree -L../kbase -L../ktrace -L../khash
-SO_LIBS       = -lkalloc -lcorJson -lcorTree -lkbase -lktrace -lkhash -lpthread
-SO_RPATH      = -Wl,-rpath,'$$ORIGIN/../kalloc:$$ORIGIN/../corJson:$$ORIGIN/../corTree:$$ORIGIN/../kbase:$$ORIGIN/../ktrace:$$ORIGIN/../khash'
+SO_LDFLAGS    = -L../kalloc -L../corJson -L../corTree -L../kbase -L../corLog -L../corHash
+SO_LIBS       = -lkalloc -lcorJson -lcorTree -lkbase -lcorLog -lcorHash -lpthread
+SO_RPATH      = -Wl,-rpath,'$$ORIGIN/../kalloc:$$ORIGIN/../corJson:$$ORIGIN/../corTree:$$ORIGIN/../kbase:$$ORIGIN/../corLog:$$ORIGIN/../corHash'
 
-LIBS          = ../kalloc/libkalloc.a ../corJson/libcorJson.a ../corTree/libcorTree.a ../kbase/libkbase.a ../ktrace/libktrace.a ../khash/libkhash.a -lpthread
+LIBS          = ../kalloc/libkalloc.a ../corJson/libcorJson.a ../corTree/libcorTree.a ../kbase/libkbase.a ../corLog/libcorLog.a ../corHash/libcorHash.a -lpthread
 
 #
 # The artefacts are built per flavour and then STAGED to the repo root, where

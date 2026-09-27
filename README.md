@@ -56,8 +56,8 @@ typedef struct CorLdContext {
   char*               id;         // identifier (URL or broker-generated)
   char*               body;       // raw JSON body as received (may be NULL)
   CorLdContextKind     kind;       // CorLdKindImplicit | CorLdKindCached | CorLdKindHosted
-  KHashTable*         nameHT;     // name -> CorLdItem  (expansion)
-  KHashTable*         valueHT;    // IRI  -> CorLdItem  (compaction)
+  CorHashTable*       nameHT;     // name -> CorLdItem  (expansion)
+  CorHashTable*       valueHT;    // IRI  -> CorLdItem  (compaction)
   char*               vocab;      // @vocab value, or NULL
   struct CorLdContext** contextV;  // child contexts (for arrays)
   int                 contexts;   // child-context count
@@ -69,7 +69,7 @@ typedef struct CorLdContext {
 typedef char* (*CorLdDownloadFunction)(const char* url, int* statusCodeP);
 ```
 
-`KAlloc` and `KHashTable` come from the k-libs (`kalloc`, `khash`), `CorNode` from
+`KAlloc` comes from the k-lib `kalloc`, `CorHashTable` from `corHash`, `CorNode` from
 corTree and `CorJson` from corJson. corJsonld allocates onto a caller-provided
 `KAlloc` arena — it does not own request-scoped memory.
 
@@ -201,8 +201,7 @@ Sibling repos (one `.a` each):
 - [`corTree`](https://github.com/SEAMWARE/corTree) — the tree (`CorNode`)
 - [`corJson`](https://github.com/SEAMWARE/corJson) — JSON parsing and rendering (`CorJson`)
 - [`kbase`](https://gitlab.com/kzangeli/kbase) — core utilities
-- [`khash`](https://gitlab.com/kzangeli/khash) — hash tables (`KHashTable`)
-- [`klog`](https://gitlab.com/kzangeli/klog) — logging
-- [`ktrace`](https://gitlab.com/kzangeli/ktrace) — trace levels
+- [`corHash`](https://github.com/SEAMWARE/corHash) — hash tables (`CorHashTable`)
+- [`corLog`](https://github.com/SEAMWARE/corLog) — logging and trace levels
 
 Plus `pthread` for the cache mutex.

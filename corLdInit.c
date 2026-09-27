@@ -12,7 +12,7 @@
 
 #include <pthread.h>                                 // pthread_mutex_init, pthread_mutex_destroy
 
-#include "ktrace/kTrace.h"                            // KT_E
+#include "corLog/corLog.h"                            // COR_E
 #include "corTree/CorNode.h"                         // CorNode
 #include "corJson/corJsonParse.h"                    // corJsonParse
 #include "corTree/corTreeLookup.h"                   // corTreeLookup
@@ -20,7 +20,7 @@
 #include "kalloc/kaAlloc.h"                           // kaAlloc
 #include "kalloc/kaStrdup.h"                         // kaStrdup
 #include "kalloc/KAlloc.h"                            // KAlloc
-#include "khash/khash.h"                             // KHashTable, KHashListItem, khashItemAdd, khashItemLookup
+#include "corHash/corHash.h"                         // CorHashTable, CorHashListItem, corHashItemAdd, corHashItemLookup
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTInit
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
 #include "corJsonld/CorLdContext.h"                    // CorLdContext
@@ -95,7 +95,7 @@ static void coreContextPrefixSnapshot(CorLdContext* contextP)
 
   for (int slot = 0; slot < contextP->nameHT->arraySize; slot++)
   {
-    for (KHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
+    for (CorHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
     {
       CorLdItem* itP = (CorLdItem*) lP->data;
       if (itP == NULL || itP->name == NULL || itP->id == NULL) continue;
@@ -240,7 +240,7 @@ static struct CorLdItem* pristineReverseLookup(CorLdContext* contextP, const cha
   if (contextP->valueHT == NULL)
     return NULL;
 
-  return (struct CorLdItem*) khashItemLookup(contextP->valueHT, iri);
+  return (struct CorLdItem*) corHashItemLookup(contextP->valueHT, iri);
 }
 
 
@@ -332,7 +332,7 @@ static void coreContextRewriteToShort(CorLdContext* contextP)
 
   for (int slot = 0; slot < contextP->nameHT->arraySize; slot++)
   {
-    for (KHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
+    for (CorHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
     {
       CorLdItem* itemP = (CorLdItem*) lP->data;
 
@@ -413,7 +413,7 @@ static void coreContextClassifyFlags(CorLdContext* contextP)
 
   for (int slot = 0; slot < contextP->nameHT->arraySize; slot++)
   {
-    for (KHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
+    for (CorHashListItem* lP = contextP->nameHT->array[slot]; lP != NULL; lP = lP->next)
     {
       CorLdItem* itemP = (CorLdItem*) lP->data;
 
@@ -456,7 +456,7 @@ int corLdCoreTermsAdd(const CorLdCoreTerm* termV, KAlloc* kaP)
 
   for (const CorLdCoreTerm* tP = termV; (tP != NULL) && (tP->name != NULL); tP++)
   {
-    if (khashItemLookup(coreP->nameHT, tP->name) != NULL)
+    if (corHashItemLookup(coreP->nameHT, tP->name) != NULL)
       continue;   // the core has it already - its own definition stands
 
     CorLdItem* itemP = (CorLdItem*) kaAlloc(kaP, sizeof(CorLdItem));
@@ -476,8 +476,8 @@ int corLdCoreTermsAdd(const CorLdCoreTerm* termV, KAlloc* kaP)
     itemP->container = CorLdContainerNone;
     itemP->flags     = coreTermFlags(itemP->name);
 
-    khashItemAdd(coreP->nameHT,  itemP->name, itemP);
-    khashItemAdd(coreP->valueHT, itemP->id,   itemP);
+    corHashItemAdd(coreP->nameHT,  itemP->name, itemP);
+    corHashItemAdd(coreP->valueHT, itemP->id, itemP);
     ++added;
   }
 
@@ -620,7 +620,7 @@ int corLdInit(KAlloc* kaP, const char* coreContextUrl, CorLdDownloadFunction dow
   corLdCoreVocab = contextVocab(corLdCoreContextP);
   if (corLdCoreVocab == NULL)
   {
-    KT_E("Core context has no @vocab member — broker cannot expand unknown user terms. Refusing to start.");
+    COR_E("Core context has no @vocab member — broker cannot expand unknown user terms. Refusing to start.");
     return -1;
   }
   corLdCoreVocabLen = (int) strlen(corLdCoreVocab);

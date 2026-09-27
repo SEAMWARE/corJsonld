@@ -9,7 +9,7 @@
 #include <string.h>                                  // strncmp, strlen
 
 #include "kalloc/kaAlloc.h"                          // kaAlloc
-#include "khash/khash.h"                             // khashItemLookup, KHashListItem
+#include "corHash/corHash.h"                         // corHashItemLookup, CorHashListItem
 #include "corJsonld/CorLdItem.h"                       // CorLdItem
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTCompact
@@ -48,7 +48,7 @@ static CorLdItem* contextReverseLookup(CorLdContext* contextP, const char* iri)
   if (contextP->valueHT == NULL)
     return NULL;
 
-  return (CorLdItem*) khashItemLookup(contextP->valueHT, iri);
+  return (CorLdItem*) corHashItemLookup(contextP->valueHT, iri);
 }
 
 
@@ -118,7 +118,7 @@ static CorLdItem* contextNameLookup(CorLdContext* contextP, const char* name)
   if (contextP->nameHT == NULL)
     return NULL;
 
-  return (CorLdItem*) khashItemLookup(contextP->nameHT, name);
+  return (CorLdItem*) corHashItemLookup(contextP->nameHT, name);
 }
 
 
@@ -198,7 +198,7 @@ static const char* prefixCompactScan(CorLdContext* contextP,
 
   for (int slot = 0; slot < contextP->nameHT->arraySize; slot++)
   {
-    KHashListItem* lP = contextP->nameHT->array[slot];
+    CorHashListItem* lP = contextP->nameHT->array[slot];
     while (lP != NULL)
     {
       CorLdItem* itP = (CorLdItem*) lP->data;
