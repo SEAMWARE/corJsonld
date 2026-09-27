@@ -77,7 +77,7 @@ static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
   if (objectP == NULL || objectP->type != CorObject)
     return;
 
-  for (CorNode* childP = objectP->value.firstChildP; childP != NULL; childP = childP->next)
+  for (CorNode* childP = objectP->value.head; childP != NULL; childP = childP->next)
   {
     if (childP->name == NULL)
       continue;
@@ -151,7 +151,7 @@ static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
       }
       else if (childP->type == CorArray)
       {
-        for (CorNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+        for (CorNode* elemP = childP->value.head; elemP != NULL; elemP = elemP->next)
         {
           if (elemP->type == CorString)
           {
@@ -178,7 +178,7 @@ static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
         vocabValueCompact(coreP, termItemP, childP);
       else if (childP->type == CorArray)
       {
-        for (CorNode* elemP = childP->value.firstChildP; elemP != NULL; elemP = elemP->next)
+        for (CorNode* elemP = childP->value.head; elemP != NULL; elemP = elemP->next)
         {
           if (elemP->type == CorString)
             vocabValueCompact(coreP, termItemP, elemP);
@@ -198,7 +198,7 @@ static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
       compactObject(childP, coreP, level + 1);
     else if (childP->type == CorArray)
     {
-      for (CorNode* itemP = childP->value.firstChildP; itemP != NULL; itemP = itemP->next)
+      for (CorNode* itemP = childP->value.head; itemP != NULL; itemP = itemP->next)
         compactObject(itemP, coreP, level + 1);
     }
   }
@@ -221,7 +221,7 @@ void corLdCompactTreeWith(CorNode* treeP, CorLdContext* ctxP)
   }
   else if (treeP->type == CorArray)
   {
-    for (CorNode* itemP = treeP->value.firstChildP; itemP != NULL; itemP = itemP->next)
+    for (CorNode* itemP = treeP->value.head; itemP != NULL; itemP = itemP->next)
       compactObject(itemP, ctxP, 0);
   }
 }

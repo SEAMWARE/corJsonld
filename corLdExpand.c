@@ -385,7 +385,7 @@ bool corLdValueObjectIs(CorNode* objP)
   if ((objP == NULL) || (objP->type != CorObject))
     return false;
 
-  for (CorNode* childP = objP->value.firstChildP; childP != NULL; childP = childP->next)
+  for (CorNode* childP = objP->value.head; childP != NULL; childP = childP->next)
   {
     if (childP->name == NULL)
       continue;
@@ -417,7 +417,7 @@ bool corLdValueObjectCheck(CorNode* objP, char** detailP)
   CorNode* atValueP = NULL;
   CorNode* atTypeP = NULL;
 
-  for (CorNode* childP = objP->value.firstChildP; childP != NULL; childP = childP->next)
+  for (CorNode* childP = objP->value.head; childP != NULL; childP = childP->next)
   {
     if      ((childP->name != NULL) && (strcmp(childP->name, "@value") == 0))  atValueP = childP;
     else if ((childP->name != NULL) && (strcmp(childP->name, "@type")  == 0))  atTypeP  = childP;
