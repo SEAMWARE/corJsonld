@@ -16,7 +16,7 @@
 #include "corTree/corTreeBuilder.h"                  // corTreeChildRemove
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTExpand
-#include "corJsonld/corLdInit.h"                       // corLdCoreContext
+#include "corJsonld/corLdInit.h"                       // corLdCoreContext, corLdCoreItemById
 #include "corJsonld/corLdExpand.h"                     // corLdExpand
 #include "corJsonld/corLdContextParse.h"               // corLdContextFromTree
 #include "corJsonld/corLdExpandTree.h"                 // Own interface
@@ -159,8 +159,24 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
     //
     bool coreContext = false;
     CorLdItem* termItemP = NULL;
-    char* expanded = (inValue == true) ? corLdExpandValueKey(contextP, childP->name, kaP, &termItemP, &coreContext)
-                                       : corLdExpand(contextP, childP->name, kaP, &termItemP, &coreContext);
+    //
+    // A node the parser already stamped as a core term (corJson key hook) needs no
+    // expansion: its item is an array index away, and core terms always win, so it is
+    // the item corLdExpand would find. Everything else is expanded as always.
+    //
+    CorLdItem* stampedP = corLdCoreItemById(childP->termId);
+    char*      expanded;
+
+    if (stampedP != NULL)
+    {
+      termItemP   = stampedP;
+      coreContext = true;
+      expanded    = stampedP->id;
+    }
+    else if (inValue == true)
+      expanded = corLdExpandValueKey(contextP, childP->name, kaP, &termItemP, &coreContext);
+    else
+      expanded = corLdExpand(contextP, childP->name, kaP, &termItemP, &coreContext);
 
     // Copy the term's classification bits (KJF_*) from the matched context item
     // onto the node, so the broker tells structural members from sub-attributes
@@ -169,7 +185,9 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
     if (termItemP != NULL)
     {
       childP->flags  |= termItemP->flags;
-      childP->termId  = termItemP->termId;
+
+      if (termItemP->termId != 0)                  // a USER item has none - keep what the parser stamped
+        childP->termId = termItemP->termId;
     }
     else if (coreContext)
       childP->flags |= KJF_CORE_TERM;
