@@ -132,7 +132,10 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
     // (and which value-key) with a bit test rather than a strcmp chain. Core
     // terms reached via prefix-expansion carry no item — flag them core-term.
     if (termItemP != NULL)
-      childP->flags |= termItemP->flags;
+    {
+      childP->flags  |= termItemP->flags;
+      childP->termId  = termItemP->termId;
+    }
     else if (coreContext)
       childP->flags |= KJF_CORE_TERM;
 

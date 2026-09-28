@@ -488,6 +488,92 @@ int corLdCoreTermsAdd(const CorLdCoreTerm* termV, CorAlloc* kaP)
 
 // -----------------------------------------------------------------------------
 //
+// coreItemV - core items by termId (corLdCoreTermIdsSet fills it, corLdCoreItemById reads it)
+//
+static CorLdItem**  coreItemV     = NULL;
+static int          coreItemCount = 0;
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdCoreTermIdsSet -
+//
+int corLdCoreTermIdsSet(const char* const* nameV, int count, CorAlloc* kaP, const char** missingP)
+{
+  CorLdContext* coreP     = coreNameTable(corLdCoreContextP);
+  CorLdContext* pristineP = coreNameTable(corLdCorePristineP);
+
+  if ((coreP == NULL) || (count < 1) || (count > 0x10000))
+    return -1;
+
+  CorLdItem** itemV = (CorLdItem**) corAlloc(kaP, count * sizeof(CorLdItem*));
+
+  if (itemV == NULL)
+    return -1;
+
+  memset(itemV, 0, count * sizeof(CorLdItem*));
+
+  for (int id = 1; id < count; id++)
+  {
+    CorLdItem* itemP = (CorLdItem*) corHashItemLookup(coreP->nameHT, nameV[id]);
+
+    if (itemP == NULL)
+      continue;   // not a term of this core context
+
+    itemP->termId = (uint16_t) id;
+    itemV[id]     = itemP;
+
+    CorLdItem* twinP = (pristineP != NULL) ? (CorLdItem*) corHashItemLookup(pristineP->nameHT, nameV[id]) : NULL;
+
+    if (twinP != NULL)
+      twinP->termId = (uint16_t) id;
+  }
+
+  //
+  // Every core term must have an id - the core context is fixed at startup, so a
+  // term without one is a table that does not match the core, found here and not
+  // by a request that took the "not a core term" path.
+  //
+  for (int slot = 0; slot < coreP->nameHT->arraySize; slot++)
+  {
+    for (CorHashListItem* lP = coreP->nameHT->array[slot]; lP != NULL; lP = lP->next)
+    {
+      CorLdItem* itemP = (CorLdItem*) lP->data;
+
+      if ((itemP != NULL) && (itemP->termId == 0))
+      {
+        if (missingP != NULL)
+          *missingP = itemP->name;
+        return -1;
+      }
+    }
+  }
+
+  coreItemV     = itemV;
+  coreItemCount = count;
+
+  return 0;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdCoreItemById -
+//
+struct CorLdItem* corLdCoreItemById(uint16_t termId)
+{
+  if ((termId == 0) || (termId >= coreItemCount))
+    return NULL;
+
+  return coreItemV[termId];
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // coreContextFromEmbedded - parse the compiled-in core context body
 //
 static CorLdContext* coreContextFromEmbedded(CorAlloc* kaP)
@@ -646,4 +732,6 @@ void corLdCleanup(void)
   corLdInitialized  = false;
   corLdCoreVocab    = NULL;
   corLdCoreVocabLen = 0;
+  coreItemV         = NULL;
+  coreItemCount     = 0;
 }

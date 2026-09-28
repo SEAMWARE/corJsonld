@@ -9,6 +9,8 @@
 #ifndef CORLD_INIT_H
 #define CORLD_INIT_H
 
+#include <stdint.h>                                  // uint16_t
+
 #include "corAlloc/CorAlloc.h"                       // CorAlloc
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 
@@ -98,6 +100,36 @@ typedef struct CorLdCoreTerm
 // termV ends with a { NULL, NULL } entry. Returns the number added, -1 on error.
 //
 extern int corLdCoreTermsAdd(const CorLdCoreTerm* termV, CorAlloc* kaP);
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdCoreTermIdsSet - give every core term its id
+//
+// nameV[id] is the name of the term whose id is 'id', for 1 <= id < count; nameV[0]
+// is unused, as 0 means "not a core term". The ids are the caller's (for NGSI-LD, an
+// enum in corNgsild) - corJsonld does not know what they mean.
+//
+// Stamps the item in the core context and its twin in the pristine copy (both are
+// handed out by corLdExpand), and fills the table behind corLdCoreItemById. Call it
+// once, after corLdInit and after any corLdCoreTermsAdd.
+//
+// The core context is fixed at startup, so every core term must have an id: a core
+// item left without one is a startup error - -1, with *missingP naming it. A name in
+// nameV that the core does not define is skipped.
+//
+extern int corLdCoreTermIdsSet(const char* const* nameV, int count, CorAlloc* kaP, const char** missingP);
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdCoreItemById - the core item whose termId is 'termId' - an array index, no lookup
+//
+// NULL for 0, for an id out of range, and before corLdCoreTermIdsSet.
+//
+extern struct CorLdItem* corLdCoreItemById(uint16_t termId);
 
 
 

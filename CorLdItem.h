@@ -9,6 +9,8 @@
 #ifndef CORLD_ITEM_H
 #define CORLD_ITEM_H
 
+#include <stdint.h>                                  // uint16_t
+
 
 
 // -----------------------------------------------------------------------------
@@ -58,6 +60,9 @@ typedef struct CorLdItem
   unsigned char  flags;      // KJF_* bits (corLdExpand.h), classified once when the
                              // core context is loaded and copied onto each CorNode
                              // during expansion — so downstream is a bit test, not strcmp.
+  uint16_t       termId;     // the user's id for a CORE term (corLdCoreTermIdsSet), 0 for any other
+                             // item. Opaque here: corJsonld only stores it, copies it onto each
+                             // CorNode during expansion and indexes corLdCoreItemById with it.
 } CorLdItem;
 
 #endif
