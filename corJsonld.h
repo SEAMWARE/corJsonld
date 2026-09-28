@@ -15,6 +15,7 @@
 #include "corJsonld/corLdInit.h"                       // corLdInit, corLdCleanup, corLdCoreContext, CorLdDownloadFunction
 #include "corJsonld/corLdContextParse.h"               // corLdContextFromTree, corLdContextFromObject
 #include "corJsonld/corLdExpand.h"                     // corLdExpand, corLdAlreadyExpanded
+#include "corJsonld/corLdCoreLookup.h"                 // corLdCoreLookup
 #include "corJsonld/corLdCompact.h"                    // corLdCompact
 #include "corJsonld/corLdExpandTree.h"                 // corLdExpandTree
 #include "corJsonld/corLdCompactTree.h"                // corLdCompactTree
