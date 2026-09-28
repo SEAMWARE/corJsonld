@@ -163,6 +163,22 @@ extern char* corLdExpand(CorLdContext* contextP, const char* name, CorAlloc* kaP
 
 // -----------------------------------------------------------------------------
 //
+// corLdExpandValueKey - expand a member name INSIDE a compound value
+//
+// Exactly corLdExpand, without the name-grammar check (corLdSetVocabExpandCheck).
+// NGSI-LD restricts Entity Type, Property and Relationship names to a grammar
+// (TS 104 175 clause 5.2.2.3); the member names inside a Property's value, a
+// ListProperty's valueList or a LanguageProperty's languageMap (RFC 5646 tags such
+// as "es-419") are none of those, and are expanded - via the core @vocab if nothing
+// else defines them - whatever characters they hold. A q/orderBy trailing path
+// addresses those same names, so its segments are expanded with this too.
+//
+extern char* corLdExpandValueKey(CorLdContext* contextP, const char* name, CorAlloc* kaP, CorLdItem** itemPP, bool* coreContextP);
+
+
+
+// -----------------------------------------------------------------------------
+//
 // contextItemLookup - look up a term (an "item") by short name in a context
 //                     (handles array contexts). Returns the CorLdItem or NULL.
 //

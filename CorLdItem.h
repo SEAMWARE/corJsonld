@@ -40,8 +40,15 @@ typedef enum CorLdContainer
 } CorLdContainer;
 
 // Mask of containers whose value-object keys must NOT be expanded/compacted
-// as terms — language tags and user-defined index strings are opaque.
-#define CORLD_CONTAINER_OPAQUE_KEYS  (CorLdContainerLanguage | CorLdContainerIndex)
+// as terms — user-defined index strings are opaque.
+//
+// ⚠ @language is deliberately NOT here. On the wire a language map's keys are
+// RFC 5646 language tags, and they stay tags: the broker expands them only as
+// its INTERNAL encoding - so that a q/orderBy trailing path addresses a
+// LanguageProperty and a Property the same way (attrs.L.value.<expanded key>) -
+// and compaction turns them back into the same tags on the way out. Nothing
+// expanded may leave the broker (KZ 2026-09-28).
+#define CORLD_CONTAINER_OPAQUE_KEYS  (CorLdContainerIndex)
 
 
 

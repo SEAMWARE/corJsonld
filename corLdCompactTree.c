@@ -72,6 +72,8 @@ static void vocabValueCompact(CorLdContext* coreP, CorLdItem* termItemP, CorNode
 
 
 
+static void compactArray(CorNode* arrayP, CorLdContext* coreP, int level);
+
 static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
 {
   if (objectP == NULL || objectP->type != CorObject)
@@ -191,16 +193,48 @@ static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
     // Skip recursion when the term's container marks the inner keys as
     // opaque (see @container handling above).
     //
+    //
+    // An @index map (a simplified multi-attribute's "dataset", keyed by datasetId):
+    // its KEYS are index strings and stay as they are, but each VALUE is an ordinary
+    // node whose members are compacted like any other.
+    //
+    if ((termItemP != NULL) && ((termItemP->container & CorLdContainerIndex) != 0) && (childP->type == CorObject))
+    {
+      for (CorNode* indexedP = childP->value.head; indexedP != NULL; indexedP = indexedP->next)
+      {
+        if (indexedP->type == CorObject)
+          compactObject(indexedP, coreP, level + 1);
+      }
+      continue;
+    }
+
     if (opaqueKeys)
       continue;
 
     if (childP->type == CorObject)
       compactObject(childP, coreP, level + 1);
     else if (childP->type == CorArray)
-    {
-      for (CorNode* itemP = childP->value.head; itemP != NULL; itemP = itemP->next)
-        compactObject(itemP, coreP, level + 1);
-    }
+      compactArray(childP, coreP, level + 1);
+  }
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// compactArray - compact the objects in an array, at any depth
+//
+// Arrays nest: a temporal "languageMaps" is [[{"languageMap": {...}}, time], ...],
+// and an object two arrays down is as much a node as one directly inside.
+//
+static void compactArray(CorNode* arrayP, CorLdContext* coreP, int level)
+{
+  for (CorNode* itemP = arrayP->value.head; itemP != NULL; itemP = itemP->next)
+  {
+    if (itemP->type == CorObject)
+      compactObject(itemP, coreP, level);
+    else if (itemP->type == CorArray)
+      compactArray(itemP, coreP, level);
   }
 }
 

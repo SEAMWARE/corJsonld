@@ -83,7 +83,38 @@ static bool isJsonLiteral(CorNode* objectP)
 
 
 
-static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP, int level)
+static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP, int level, bool inValue);
+
+
+
+// -----------------------------------------------------------------------------
+//
+// expandArray - expand the objects in an array, at any depth
+//
+// Arrays nest (a ListProperty's valueList may hold arrays of objects), and an object
+// two arrays down is as much a node as one directly inside.
+//
+static void expandArray(CorNode* arrayP, CorLdContext* contextP, CorAlloc* kaP, int level, bool inValue)
+{
+  for (CorNode* itemP = arrayP->value.head; itemP != NULL; itemP = itemP->next)
+  {
+    if (itemP->type == CorObject)
+      expandObject(itemP, contextP, kaP, level, inValue);
+    else if (itemP->type == CorArray)
+      expandArray(itemP, contextP, kaP, level, inValue);
+  }
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// inValue: objectP is (inside) a compound value - a Property's value, a ListProperty's
+// valueList, a LanguageProperty's languageMap. Its member names are expanded but not
+// held to the NGSI-LD name grammar (corLdExpandValueKey), and an @-name is kept as it
+// is, unchecked - it is somebody's JSON, not an NGSI-LD name.
+//
+static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP, int level, bool inValue)
 {
   if (objectP == NULL || objectP->type != CorObject)
     return;
@@ -111,6 +142,9 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
     //
     if (childP->name[0] == '@')
     {
+      if (inValue == true)
+        continue;
+
       if (corLdKeywordIs(childP->name) == false)
       {
         if ((keywordCheckP != NULL) && (keywordCheckP(childP->name) == false))
@@ -125,7 +159,8 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
     //
     bool coreContext = false;
     CorLdItem* termItemP = NULL;
-    char* expanded = corLdExpand(contextP, childP->name, kaP, &termItemP, &coreContext);
+    char* expanded = (inValue == true) ? corLdExpandValueKey(contextP, childP->name, kaP, &termItemP, &coreContext)
+                                       : corLdExpand(contextP, childP->name, kaP, &termItemP, &coreContext);
 
     // Copy the term's classification bits (KJF_*) from the matched context item
     // onto the node, so the broker tells structural members from sub-attributes
@@ -143,22 +178,29 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
     // (BCP-47 language tags or user-defined index strings), NOT terms.
     // Don't recurse into those subtrees with the term-expander.
     //
-    // Same for the VALUE-position core terms (value / json / valueList):
-    // a Property's value is plain JSON — its member names are NOT
-    // vocabulary terms and q's "[...]" addresses them verbatim
-    // (§ 4.5.2 / § 4.9). Expanding them rewrote {"c":{"d":7}} into
-    // default-context IRized keys, unreachable by q=attr[c.d].
+    // Same for anything typed @json - by its term (the core's own "json", or
+    // "bridgeOptions": {"@type": "@json"} in a context) or by itself (a JSON
+    // literal, { "@type": "@json", "@value": ... }): JSON, not JSON-LD, so taken
+    // verbatim.
     //
-    // And anything typed @json - by its term ("bridgeOptions": {"@type": "@json"}
-    // in a context, as the core's own "json" is) or by itself (a JSON literal,
-    // { "@type": "@json", "@value": ... }): JSON, not JSON-LD, so taken verbatim.
+    // ⚠ A Property's `value` (and a ListProperty's `valueList`) is NOT opaque.
+    // The core context defines "value" as a plain term (ngsi-ld:hasValue) and
+    // "valueList" as an @list - JSON-LD, so the member names of a compound value
+    // are terms and are expanded like any other. TS 104 175 clause 7 says the same
+    // from the query side: a q attribute path, its bracketed trailing path
+    // included, "is always a composition of short hand names" with an @context
+    // "properly defining all the terms", and its Example 11 addresses
+    // rawdata[airquality.particulate] - keys INSIDE a value - as such terms.
+    // Treating value as opaque also stored one compound value in two forms: short
+    // keys from normalized input, expanded ones from simplified input (where
+    // nothing marks the value as one).
     //
-    int  vk         = (termItemP != NULL) ? KJF_VK_ID(termItemP->flags) : KJF_VK_NONE;
-    bool jsonTyped  = (termItemP != NULL) && (termItemP->type != NULL) && (strcmp(termItemP->type, "@json") == 0);
-    bool opaqueKeys = (termItemP != NULL &&
-                       ((termItemP->container & CORLD_CONTAINER_OPAQUE_KEYS) != 0 ||
-                        vk == KJF_VK_VALUE || vk == KJF_VK_JSON || vk == KJF_VK_VALUELIST)) ||
-                      jsonTyped || isJsonLiteral(childP);
+    int  vk            = (termItemP != NULL) ? KJF_VK_ID(termItemP->flags) : KJF_VK_NONE;
+    bool jsonTyped     = (termItemP != NULL) && (termItemP->type != NULL) && (strcmp(termItemP->type, "@json") == 0);
+    bool valuePosition = (vk == KJF_VK_VALUE) || (vk == KJF_VK_JSON) || (vk == KJF_VK_VALUELIST);
+    bool opaqueKeys    = (termItemP != NULL &&
+                          ((termItemP->container & CORLD_CONTAINER_OPAQUE_KEYS) != 0 || vk == KJF_VK_JSON)) ||
+                         jsonTyped || isJsonLiteral(childP);
 
     if (expanded != NULL && expanded[0] != '@')
     {
@@ -179,7 +221,7 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
       // a value-object there is an attribute value, validated downstream by
       // ldCheckAttribute — not a free property of the enclosing resource.
       //
-      if (opaqueKeys == false && childP->type == CorObject)
+      if ((opaqueKeys == false) && (valuePosition == false) && (childP->type == CorObject))
       {
         CorNode* atValueP = corTreeLookup(childP, "@value");
 
@@ -337,16 +379,31 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
     // Skip recursion when the term's container marks the inner keys as
     // opaque (see @container handling above).
     //
+    //
+    // An @index map (a simplified multi-attribute's "dataset", keyed by datasetId):
+    // its KEYS are index strings and stay as they are, but each VALUE is an ordinary
+    // node whose members are expanded like any other.
+    //
+    if ((termItemP != NULL) && ((termItemP->container & CorLdContainerIndex) != 0) && (childP->type == CorObject))
+    {
+      for (CorNode* indexedP = childP->value.head; indexedP != NULL; indexedP = indexedP->next)
+      {
+        if (indexedP->type == CorObject)
+          expandObject(indexedP, contextP, kaP, level + 1, inValue);
+      }
+      continue;
+    }
+
     if (opaqueKeys)
       continue;
 
+    bool childInValue = (inValue == true) || (valuePosition == true) ||
+                        ((termItemP != NULL) && ((termItemP->container & CorLdContainerLanguage) != 0));
+
     if (childP->type == CorObject)
-      expandObject(childP, contextP, kaP, level + 1);
+      expandObject(childP, contextP, kaP, level + 1, childInValue);
     else if (childP->type == CorArray)
-    {
-      for (CorNode* itemP = childP->value.head; itemP != NULL; itemP = itemP->next)
-        expandObject(itemP, contextP, kaP, level + 1);
-    }
+      expandArray(childP, contextP, kaP, level + 1, childInValue);
   }
 }
 
@@ -403,7 +460,7 @@ CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, CorAll
     if (contextP == NULL)
       return NULL;
 
-    expandObject(treeP, contextP, kaP, 0);
+    expandObject(treeP, contextP, kaP, 0, false);
     return contextP;
   }
 
@@ -429,7 +486,7 @@ CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, CorAll
       if (useCtx == NULL)
         continue;
 
-      expandObject(itemP, useCtx, kaP, 0);
+      expandObject(itemP, useCtx, kaP, 0, false);
 
       if (firstContextP == NULL)
         firstContextP = useCtx;
