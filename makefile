@@ -46,6 +46,7 @@ LIB_SOURCES   = corJsonld.c          \
                 corLdExpandTree.c    \
                 corLdCompactTree.c   \
                 corLdPrefixExpand.c  \
+                corLdCoreLookup.c    \
                 corLdCache.c         \
                 corLdDownload.c      \
                 corLdIdGen.c         \
