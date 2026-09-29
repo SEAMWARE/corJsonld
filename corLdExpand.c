@@ -205,9 +205,35 @@ const char* contextVocab(CorLdContext* contextP)
 
 // -----------------------------------------------------------------------------
 //
+// expandName - corLdExpand, with the NGSI-LD name-grammar check optional
+//
+static char* expandName(CorLdContext* contextP, const char* name, CorAlloc* kaP, CorLdItem** itemPP, bool* coreContextP, bool nameCheck);
+
+
+
+// -----------------------------------------------------------------------------
+//
 // corLdExpand -
 //
 char* corLdExpand(CorLdContext* contextP, const char* name, CorAlloc* kaP, CorLdItem** itemPP, bool* coreContextP)
+{
+  return expandName(contextP, name, kaP, itemPP, coreContextP, true);
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdExpandValueKey -
+//
+char* corLdExpandValueKey(CorLdContext* contextP, const char* name, CorAlloc* kaP, CorLdItem** itemPP, bool* coreContextP)
+{
+  return expandName(contextP, name, kaP, itemPP, coreContextP, false);
+}
+
+
+
+static char* expandName(CorLdContext* contextP, const char* name, CorAlloc* kaP, CorLdItem** itemPP, bool* coreContextP, bool nameCheck)
 {
   if (itemPP != NULL)
     *itemPP = NULL;
@@ -360,7 +386,7 @@ char* corLdExpand(CorLdContext* contextP, const char* name, CorAlloc* kaP, CorLd
   // names that should never reach this path; if it fires, return NULL
   // (rather than the bare name) so the caller sees the failure instead
   // of silently storing a non-IRI.
-  if (vocabExpandCheck != NULL && vocabExpandCheck(name) == false)
+  if ((nameCheck == true) && (vocabExpandCheck != NULL) && (vocabExpandCheck(name) == false))
     return NULL;
 
   int   nameLen  = (int) strlen(name);
