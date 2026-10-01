@@ -19,6 +19,7 @@
 #include "corJsonld/CorLdContext.h"                     // CorLdContext
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTContextParse
 #include "corJsonld/corLdPrefixExpand.h"               // corLdPrefixExpand
+#include "corJsonld/corLdInit.h"                       // CorLdErrorFunction
 #include "corJsonld/corLdDownload.h"                   // corLdContextFromUrl
 #include "corJsonld/corLdUrlResolve.h"                 // corLdUrlResolve
 #include "corJsonld/corLdContextParse.h"               // Own interface
@@ -87,6 +88,14 @@ static int valueCompare(const char* iri, void* itemP)
 
 // -----------------------------------------------------------------------------
 //
+// corLdErrorGet - internal (corLdInit.c), as in corLdDownload.c
+//
+extern CorLdErrorFunction corLdErrorGet(void);
+
+
+
+// -----------------------------------------------------------------------------
+//
 // corLdContextFromObject -
 //
 CorLdContext* corLdContextFromObject(CorNode* objectNode, CorAlloc* kaP, const char* url)
@@ -121,6 +130,22 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, CorAlloc* kaP, const c
     {
       memberP = memberP->next;
       continue;
+    }
+
+    //
+    // @import (JSON-LD 1.1 § 4.1.10) - load another context and apply this object's terms on top of
+    // it. Not implemented, and not silently ignored either: it became a term named "@import" before,
+    // and the client's imported terms simply never applied. NGSI-LD does not mention it (spec-doubts-2
+    // #137) - 501 until it does.
+    //
+    if (strcmp(memberP->name, "@import") == 0)
+    {
+      CorLdErrorFunction errorFn = corLdErrorGet();
+
+      if (errorFn != NULL)
+        errorFn(501, "Not Implemented", "@import in an @context is not supported");
+
+      return NULL;
     }
 
     //
