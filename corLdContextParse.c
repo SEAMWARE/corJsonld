@@ -6,6 +6,7 @@
 // Copyright 2026 Seamware
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <stdio.h>                                   // snprintf
 #include <stdbool.h>                                 // bool, true, false
 #include <string.h>                                  // strcmp, strlen
 
@@ -20,6 +21,7 @@
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTContextParse
 #include "corJsonld/corLdPrefixExpand.h"               // corLdPrefixExpand
 #include "corJsonld/corLdInit.h"                       // CorLdErrorFunction
+#include "corJsonld/corLdDownload.h"                   // corLdIsCoreContextUrl
 #include "corJsonld/corLdDownload.h"                   // corLdContextFromUrl
 #include "corJsonld/corLdUrlResolve.h"                 // corLdUrlResolve
 #include "corJsonld/corLdContextParse.h"               // Own interface
@@ -190,6 +192,26 @@ CorLdContext* corLdContextFromObject(CorNode* objectNode, CorAlloc* kaP, const c
     }
     else if (memberP->type == CorObject)
     {
+      //
+      // A scoped context - a term definition with an @context of its own - is not allowed in a user
+      // @context (TS 104-175 § 8.2: it "could be used to modify terms defined in the core @context"),
+      // and the answer is BadRequestData. The core context itself has one (ngsildproof), so the core
+      // is exempt - it is the context the rule protects.
+      //
+      if ((corTreeLookup(memberP, "@context") != NULL) && ((url == NULL) || (corLdIsCoreContextUrl(url) == false)))
+      {
+        CorLdErrorFunction errorFn = corLdErrorGet();
+
+        if (errorFn != NULL)
+        {
+          char detail[512];
+          snprintf(detail, sizeof(detail), "term '%s' defines a scoped @context - not allowed in a user @context (TS 104-175 § 8.2)", memberP->name);
+          errorFn(400, "Scoped Context Not Allowed", detail);
+        }
+
+        return NULL;
+      }
+
       //
       // Object mapping: "temperature": { "@id": "...", "@type": "..." }
       //
