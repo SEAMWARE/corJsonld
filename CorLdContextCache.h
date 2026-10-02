@@ -9,6 +9,7 @@
 #ifndef CORLD_CONTEXT_CACHE_H
 #define CORLD_CONTEXT_CACHE_H
 
+#include <stdint.h>                                     // uintptr_t
 #include <pthread.h>                                 // pthread_mutex_t
 
 #include "corAlloc/CorAlloc.h"                       // CorAlloc
@@ -49,7 +50,7 @@ typedef struct CorLdContextCache
   // The thread that put each URL in 'downloading'. A thread that finds its OWN
   // url there has recursed back into a download it is itself in the middle of -
   // a cyclic @context - and waiting for it would be waiting for itself.
-  pthread_t        downloadOwner[CORLD_MAX_DOWNLOADING];
+  uintptr_t        downloadOwner[CORLD_MAX_DOWNLOADING];   // corLdOwner(): the thread, or the request
   int              downloadCount;
 } CorLdContextCache;
 

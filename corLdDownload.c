@@ -9,7 +9,6 @@
 #include <stdbool.h>                                 // bool, true, false
 #include <stdlib.h>                                  // free
 #include <string.h>                                  // strlen, memset
-#include <unistd.h>                                  // usleep
 
 #include "corAlloc/CorAlloc.h"                       // CorAlloc
 #include "corAlloc/corAlloc.h"                       // corAlloc
@@ -211,7 +210,7 @@ CorLdContext* corLdContextFromUrl(const char* url, CorAlloc* kaP)
     //
     for (int tries = 0; tries < 150; tries++)
     {
-      usleep(20000);  // 20ms
+      corLdSleepMs(20);                       // a sleep that yields, on coroutines (corLdConcurrencySet)
 
       contextP = corLdCacheLookup(url);
       if (contextP != NULL)
