@@ -13,6 +13,7 @@
 #include "corAlloc/CorAlloc.h"                        // CorAlloc, corAlloc
 #include "corAlloc/corAlloc.h"                        // corAlloc
 
+#include "corJsonld/corLdInit.h"                         // corLdOwner
 #include "corJsonld/CorLdContextCache.h"               // CorLdContextCache
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTCache
 #include "corJsonld/corLdCache.h"                      // Own interface
@@ -331,7 +332,7 @@ void corLdCacheSnapshot(CorAlloc* allocP, CorLdContext*** arrPP, int* nP)
 int corLdCacheDownloadingAdd(const char* url)
 {
   CorLdContextCache* cacheP = corLdCacheGet();
-  pthread_t         me     = pthread_self();
+  uintptr_t          me     = corLdOwner();       // the thread - or, on coroutines, the request
 
   pthread_mutex_lock(&cacheP->mutex);
 
@@ -339,7 +340,7 @@ int corLdCacheDownloadingAdd(const char* url)
   {
     if (strcmp(cacheP->downloading[ix], url) == 0)
     {
-      int result = (pthread_equal(cacheP->downloadOwner[ix], me) != 0)? CORLD_DOWNLOAD_CYCLE : CORLD_DOWNLOAD_OTHER;
+      int result = (cacheP->downloadOwner[ix] == me)? CORLD_DOWNLOAD_CYCLE : CORLD_DOWNLOAD_OTHER;
 
       pthread_mutex_unlock(&cacheP->mutex);
       return result;

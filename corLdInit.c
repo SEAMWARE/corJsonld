@@ -6,6 +6,7 @@
 // Copyright 2026 Seamware
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <unistd.h>                              // usleep
 #include <stdbool.h>                                 // bool, true, false
 #include <stdlib.h>                                  // strdup, free
 #include <string.h>                                  // memset, strcmp
@@ -276,6 +277,34 @@ CorLdContext* corLdCoreContext(void)
 CorLdContextCache* corLdCacheGet(void)
 {
   return &corLdGlobalCache;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdConcurrencySet / corLdOwner / corLdSleepMs - see corLdInit.h
+//
+static CorLdOwnerFunction corLdOwnerFn = NULL;
+static CorLdSleepFunction corLdSleepFn = NULL;
+
+void corLdConcurrencySet(CorLdOwnerFunction ownerFn, CorLdSleepFunction sleepFn)
+{
+  corLdOwnerFn = ownerFn;
+  corLdSleepFn = sleepFn;
+}
+
+uintptr_t corLdOwner(void)
+{
+  return (corLdOwnerFn != NULL) ? corLdOwnerFn() : (uintptr_t) pthread_self();
+}
+
+void corLdSleepMs(int ms)
+{
+  if (corLdSleepFn != NULL)
+    corLdSleepFn(ms);
+  else
+    usleep(ms * 1000);
 }
 
 

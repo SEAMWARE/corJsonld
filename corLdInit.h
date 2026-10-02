@@ -57,6 +57,27 @@ typedef void (*CorLdErrorFunction)(int status, const char* title, const char* de
 
 // -----------------------------------------------------------------------------
 //
+// CorLdOwnerFunction / CorLdSleepFunction / corLdConcurrencySet - who is asking, and how to wait
+//
+// A download in progress is owned by whoever started it: another asker for the same @context waits for
+// it, and the SAME asker asking again means a cyclic @context. By default the asker is the thread
+// (pthread_self) and a wait is usleep - right while one thread runs one request. An application that
+// runs several requests on one thread (coroutines) says who the asker is - the request - and how to
+// wait without stopping the thread's other requests: a sleep that yields.
+//
+// Either may be NULL: the default. Set before the first request.
+//
+typedef uintptr_t (*CorLdOwnerFunction)(void);
+typedef void      (*CorLdSleepFunction)(int ms);
+
+extern void      corLdConcurrencySet(CorLdOwnerFunction ownerFn, CorLdSleepFunction sleepFn);
+extern uintptr_t corLdOwner(void);
+extern void      corLdSleepMs(int ms);
+
+
+
+// -----------------------------------------------------------------------------
+//
 // corLdInit -
 //
 extern int corLdInit(CorAlloc* kaP, const char* coreContextUrl, CorLdDownloadFunction downloadFn, CorLdErrorFunction errorFn);
