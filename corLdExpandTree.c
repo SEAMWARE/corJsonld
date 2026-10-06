@@ -83,7 +83,59 @@ static bool isJsonLiteral(CorNode* objectP)
 
 
 
-static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP, int level, bool inValue);
+static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP, int level, bool inValue, bool reduce);
+
+
+
+// -----------------------------------------------------------------------------
+//
+// arrayReduce - JSON-LD array reduction: a member whose value is an array of ONE element takes the
+// element as its value (the node keeps its name, flags and term id)
+//
+static void arrayReduce(CorNode* memberP)
+{
+  CorNode* onlyP = memberP->value.head;
+
+  if ((memberP->type != CorArray) || (onlyP == NULL) || (onlyP->next != NULL))
+    return;
+
+  memberP->type  = onlyP->type;
+  memberP->value = onlyP->value;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// arrayReducible - may a one-element array under this term be reduced to its element?
+//
+// Not where the term says its array is the value: @container @list or @set, or @type @json (a JSON
+// literal is taken verbatim). Not under @language either - the map's own entries are reduced
+// (languageMapReduce), the map is an object. GeoJSON's own arrays are @list (coordinates, bbox) or @set
+// (features); a GeometryCollection's "geometries" is not defined, but NGSI-LD excludes GeometryCollection.
+//
+static bool arrayReducible(CorLdItem* termItemP, bool jsonTyped)
+{
+  if (jsonTyped == true)
+    return false;
+
+  if ((termItemP != NULL) && ((termItemP->container & (CorLdContainerList | CorLdContainerSet | CorLdContainerLanguage)) != 0))
+    return false;
+
+  return true;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// languageMapReduce - a language map's entries: "en": ["x"] is "en": "x"
+//
+static void languageMapReduce(CorNode* mapP)
+{
+  for (CorNode* entryP = mapP->value.head; entryP != NULL; entryP = entryP->next)
+    arrayReduce(entryP);
+}
 
 
 
@@ -94,14 +146,14 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
 // Arrays nest (a ListProperty's valueList may hold arrays of objects), and an object
 // two arrays down is as much a node as one directly inside.
 //
-static void expandArray(CorNode* arrayP, CorLdContext* contextP, CorAlloc* kaP, int level, bool inValue)
+static void expandArray(CorNode* arrayP, CorLdContext* contextP, CorAlloc* kaP, int level, bool inValue, bool reduce)
 {
   for (CorNode* itemP = arrayP->value.head; itemP != NULL; itemP = itemP->next)
   {
     if (itemP->type == CorObject)
-      expandObject(itemP, contextP, kaP, level, inValue);
+      expandObject(itemP, contextP, kaP, level, inValue, reduce);
     else if (itemP->type == CorArray)
-      expandArray(itemP, contextP, kaP, level, inValue);
+      expandArray(itemP, contextP, kaP, level, inValue, reduce);
   }
 }
 
@@ -114,7 +166,7 @@ static void expandArray(CorNode* arrayP, CorLdContext* contextP, CorAlloc* kaP, 
 // held to the NGSI-LD name grammar (corLdExpandValueKey), and an @-name is kept as it
 // is, unchecked - it is somebody's JSON, not an NGSI-LD name.
 //
-static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP, int level, bool inValue)
+static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP, int level, bool inValue, bool reduce)
 {
   if (objectP == NULL || objectP->type != CorObject)
     return;
@@ -219,6 +271,18 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
     bool opaqueKeys    = (termItemP != NULL &&
                           ((termItemP->container & CORLD_CONTAINER_OPAQUE_KEYS) != 0 || vk == KJF_VK_JSON)) ||
                          jsonTyped || isJsonLiteral(childP);
+
+    //
+    // JSON-LD array reduction (corLdExpandEntityTree) - by the term's definition, in the core context or the
+    // user's: a one-element array is its element, unless the term keeps its arrays (arrayReducible). Done
+    // here, at the input boundary, so everything after it - validation, the store, the matching, the
+    // rendering - sees one shape.
+    //
+    if ((reduce == true) && (childP->type == CorArray) && (arrayReducible(termItemP, jsonTyped || (vk == KJF_VK_JSON)) == true))
+      arrayReduce(childP);
+
+    if ((reduce == true) && (termItemP != NULL) && ((termItemP->container & CorLdContainerLanguage) != 0) && (childP->type == CorObject))
+      languageMapReduce(childP);
 
     if (expanded != NULL && expanded[0] != '@')
     {
@@ -407,7 +471,7 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
       for (CorNode* indexedP = childP->value.head; indexedP != NULL; indexedP = indexedP->next)
       {
         if (indexedP->type == CorObject)
-          expandObject(indexedP, contextP, kaP, level + 1, inValue);
+          expandObject(indexedP, contextP, kaP, level + 1, inValue, reduce);
       }
       continue;
     }
@@ -419,9 +483,9 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
                         ((termItemP != NULL) && ((termItemP->container & CorLdContainerLanguage) != 0));
 
     if (childP->type == CorObject)
-      expandObject(childP, contextP, kaP, level + 1, childInValue);
+      expandObject(childP, contextP, kaP, level + 1, childInValue, reduce);
     else if (childP->type == CorArray)
-      expandArray(childP, contextP, kaP, level + 1, childInValue);
+      expandArray(childP, contextP, kaP, level + 1, childInValue, reduce);
   }
 }
 
@@ -429,7 +493,7 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
 
 // -----------------------------------------------------------------------------
 //
-// corLdExpandTree -
+// expandTree -
 //
 // Two kinds of body are handled:
 //
@@ -455,7 +519,7 @@ static void expandObject(CorNode* objectP, CorLdContext* contextP, CorAlloc* kaP
 // boundary sees a stray @context (it would otherwise flow into service
 // routines as if it were a user attribute — subtle stored-Property leak).
 //
-CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, CorAlloc* kaP)
+static CorLdContext* expandTree(CorNode* treeP, CorLdContext* userContextP, CorAlloc* kaP, bool reduce)
 {
   if (treeP == NULL)
     return NULL;
@@ -478,7 +542,7 @@ CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, CorAll
     if (contextP == NULL)
       return NULL;
 
-    expandObject(treeP, contextP, kaP, 0, false);
+    expandObject(treeP, contextP, kaP, 0, false, reduce);
     return contextP;
   }
 
@@ -504,7 +568,7 @@ CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, CorAll
       if (useCtx == NULL)
         continue;
 
-      expandObject(itemP, useCtx, kaP, 0, false);
+      expandObject(itemP, useCtx, kaP, 0, false, reduce);
 
       if (firstContextP == NULL)
         firstContextP = useCtx;
@@ -514,4 +578,26 @@ CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, CorAll
   }
 
   return NULL;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdExpandTree -
+//
+CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, CorAlloc* kaP)
+{
+  return expandTree(treeP, userContextP, kaP, false);
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdExpandEntityTree -
+//
+CorLdContext* corLdExpandEntityTree(CorNode* treeP, CorLdContext* userContextP, CorAlloc* kaP)
+{
+  return expandTree(treeP, userContextP, kaP, true);
 }

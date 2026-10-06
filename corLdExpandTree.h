@@ -34,4 +34,18 @@
 //
 extern CorLdContext* corLdExpandTree(CorNode* treeP, CorLdContext* userContextP, CorAlloc* kaP);
 
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdExpandEntityTree - corLdExpandTree for a tree of ENTITY data (an entity, a batch of them, an
+// attribute fragment), with JSON-LD array reduction: a member whose value is an array of one element
+// takes the element, unless its term keeps its arrays - @container @list / @set / @language, @type @json.
+// A language map's entries are reduced too.
+//
+// Not for an API object (Subscription, Registration, ...): the specification gives their members array
+// types the core context does not mark @set, and the ETSI test suite expects those arrays back.
+//
+extern CorLdContext* corLdExpandEntityTree(CorNode* treeP, CorLdContext* userContextP, CorAlloc* kaP);
+
 #endif  // CORLD_EXPAND_TREE_H
