@@ -61,11 +61,8 @@ int         corLdCoreVocabLen = 0;
 // ambiguous). We grab the snapshot pre-rewrite once at init and serve
 // it via corLdCorePrefixes() for prefixCompact's longest-match scan.
 //
-typedef struct CorLdCorePrefix {
-  const char* name;   // e.g. "ngsi-ld"
-  const char* id;     // e.g. "https://uri.etsi.org/ngsi-ld/"
-  int         idLen;
-} CorLdCorePrefix;
+// CorLdCorePrefix: in corLdInit.h - defined once (C17 rejects a second definition of the struct in this
+// translation unit; C23, gcc 15's default, accepts an identical one - so it built where gcc was new)
 
 static CorLdCorePrefix  corePrefixV[16];   // tiny set in practice (NGSI-LD core has 2: ngsi-ld + geojson)
 static int             corePrefixN = 0;
