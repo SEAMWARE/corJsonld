@@ -15,7 +15,6 @@
 #include "corJsonld/corLdTraceLevels.h"                // CorLdTCompact
 #include "corJsonld/corLdExpand.h"                     // corLdAlreadyExpanded
 #include "corJsonld/corLdInit.h"                       // corLdCoreContext, corLdCorePrefixes
-#include "corRest/corRest.h"                           // corRest.kalloc for compact-IRI alloc
 #include "corJsonld/corLdCompact.h"                    // Own interface
 
 
@@ -176,7 +175,7 @@ static const char* vocabStripGuarded(CorLdContext* userP,
 // to non-recursive contexts; isArray walks recursively, longest match
 // wins across the entire chain.
 //
-// Allocated in corRest.kalloc when a match is found; NULL otherwise.
+// Allocated in kaP when a match is found; NULL otherwise.
 //
 static const char* prefixCompactScan(CorLdContext* contextP,
                                      const char*  iri,
@@ -223,19 +222,23 @@ static const char* prefixCompactScan(CorLdContext* contextP,
   return NULL;
 }
 
-static const char* prefixCompactBuild(const char* iri, const char* name, int idLen)
+static const char* prefixCompactBuild(const char* iri, const char* name, int idLen, CorAlloc* kaP)
 {
   const char* suffix = iri + idLen;
   int nameLen   = strlen(name);
   int suffixLen = strlen(suffix);
-  char* out = (char*) corAlloc(&corRest.kalloc, nameLen + 1 + suffixLen + 1);
+  char* out = (char*) corAlloc(kaP, nameLen + 1 + suffixLen + 1);
+
+  if (out == NULL)
+    return NULL;
+
   memcpy(out, name, nameLen);
   out[nameLen] = ':';
   memcpy(out + nameLen + 1, suffix, suffixLen + 1);
   return out;
 }
 
-static const char* prefixCompact(CorLdContext* contextP, const char* iri)
+static const char* prefixCompact(CorLdContext* contextP, const char* iri, CorAlloc* kaP)
 {
   // Phase 1: scan user-context nameHT (not subject to the core-context
   // rewrite — prefix terms there still hold their full IRIs).
@@ -261,9 +264,9 @@ static const char* prefixCompact(CorLdContext* contextP, const char* iri)
   }
 
   if (bestP != NULL)
-    return prefixCompactBuild(iri, bestP->name, bestLen);
+    return prefixCompactBuild(iri, bestP->name, bestLen, kaP);
   if (coreBest != NULL)
-    return prefixCompactBuild(iri, coreBest->name, bestLen);
+    return prefixCompactBuild(iri, coreBest->name, bestLen, kaP);
   return NULL;
 }
 
@@ -273,7 +276,7 @@ static const char* prefixCompact(CorLdContext* contextP, const char* iri)
 //
 // corLdCompact -
 //
-const char* corLdCompact(CorLdContext* contextP, const char* iri)
+const char* corLdCompact(CorLdContext* contextP, const char* iri, CorAlloc* kaP)
 {
   //
   // Step 1: Not a full IRI - return as-is
@@ -329,7 +332,7 @@ const char* corLdCompact(CorLdContext* contextP, const char* iri)
   //
   if (shadowed)
   {
-    result = prefixCompact(contextP, iri);
+    result = prefixCompact(contextP, iri, kaP);
     if (result != NULL)
       return result;
   }

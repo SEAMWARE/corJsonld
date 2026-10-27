@@ -228,10 +228,12 @@ CorLdContext* corLdCacheRemove(const char* idOrUrl)
 //
 // corLdCacheReapVolatile - drop volatile contexts whose expiresAt has passed.
 //
-// Volatile contexts (broker-minted, one-shot Link targets) are normally
-// removed on their first GET. This is the backstop for the ones nobody ever
-// fetched: walk the list under the lock and unlink any volatile entry past
-// its deadline. Like corLdCacheRemove, no per-object free (cache allocator).
+// Volatile contexts (broker-minted Link targets) are NOT removed when they are
+// fetched - one entry can serve several requests at once (CorLdContext.h,
+// volatileCtx); this reaper is the only thing that retires them. Walk the list
+// under the lock and unlink any volatile entry past its deadline, which the
+// application slides forward on reuse. Like corLdCacheRemove, no per-object
+// free (cache allocator).
 // Returns the number reaped.
 //
 int corLdCacheReapVolatile(double now)
