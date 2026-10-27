@@ -20,9 +20,8 @@
 // corLdExpandTree - recursively expand all names in a parsed JSON-LD tree
 //
 // userContextP is the request's @context (from Link header or already-
-// parsed body @context — what corNgsild.contextP holds). It is always
-// supplied; the core context is built into the JSON-LD machinery, never
-// a "fallback" here. If the tree carries its own @context (root for an
+// parsed body @context — what corNgsild.contextP holds); NULL means the
+// core context alone. Core terms win either way (corLdExpand). If the tree carries its own @context (root for an
 // object body, per-element for a batch array — both per § 4.6.x), it
 // overrides userContextP for that subtree only and is stripped after
 // use.

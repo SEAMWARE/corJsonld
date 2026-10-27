@@ -28,19 +28,19 @@
 // vocabValueCompact - compact one value of an @type:@vocab term
 //
 // The mirror of vocabValueExpand: the part before a registrant-declared suffix
-// is compacted and the suffix follows it. Done IN PLACE, as there is no
-// allocator here - the compacted term is never longer than its IRI, so the
-// suffix only ever moves towards the front of the value's own buffer. Should a
-// compaction ever come out longer, the value is left as it was.
+// is compacted and the suffix follows it. Done IN PLACE - the compacted term is
+// never longer than its IRI, so the suffix only ever moves towards the front of
+// the value's own buffer. Should a compaction ever come out longer, the value
+// is left as it was.
 //
-static void vocabValueCompact(CorLdContext* coreP, CorLdItem* termItemP, CorNode* valueP)
+static void vocabValueCompact(CorLdContext* coreP, CorLdItem* termItemP, CorNode* valueP, CorAlloc* kaP)
 {
   CorLdVocabValueSuffix suffixFn = corLdGetVocabValueSuffix();
   int                   ix       = (suffixFn != NULL) ? suffixFn(termItemP->name, valueP->value.s) : -1;
 
   if (ix <= 0)
   {
-    const char* cv = corLdCompact(coreP, valueP->value.s);
+    const char* cv = corLdCompact(coreP, valueP->value.s, kaP);
     if (cv != NULL) valueP->value.s = (char*) cv;
     return;
   }
@@ -56,7 +56,7 @@ static void vocabValueCompact(CorLdContext* coreP, CorLdItem* termItemP, CorNode
   //
   valueS[ix] = 0;
 
-  const char* cv    = corLdCompact(coreP, valueS);
+  const char* cv    = corLdCompact(coreP, valueS, kaP);
   int         cvLen = (cv != NULL) ? (int) strlen(cv) : -1;
 
   if ((cv == NULL) || (cvLen > ix))
@@ -72,9 +72,9 @@ static void vocabValueCompact(CorLdContext* coreP, CorLdItem* termItemP, CorNode
 
 
 
-static void compactArray(CorNode* arrayP, CorLdContext* coreP, int level);
+static void compactArray(CorNode* arrayP, CorLdContext* coreP, int level, CorAlloc* kaP);
 
-static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
+static void compactObject(CorNode* objectP, CorLdContext* coreP, int level, CorAlloc* kaP)
 {
   if (objectP == NULL || objectP->type != CorObject)
     return;
@@ -93,7 +93,7 @@ static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
     //
     // Compact the name
     //
-    const char* compacted = corLdCompact(coreP, childP->name);
+    const char* compacted = corLdCompact(coreP, childP->name, kaP);
 
     if (compacted != NULL)
       childP->name = (char*) compacted;
@@ -146,7 +146,7 @@ static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
     {
       if (childP->type == CorString)
       {
-        const char* compactedValue = corLdCompact(coreP, childP->value.s);
+        const char* compactedValue = corLdCompact(coreP, childP->value.s, kaP);
 
         if (compactedValue != NULL)
           childP->value.s = (char*) compactedValue;
@@ -157,7 +157,7 @@ static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
         {
           if (elemP->type == CorString)
           {
-            const char* compactedValue = corLdCompact(coreP, elemP->value.s);
+            const char* compactedValue = corLdCompact(coreP, elemP->value.s, kaP);
 
             if (compactedValue != NULL)
               elemP->value.s = (char*) compactedValue;
@@ -177,13 +177,13 @@ static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
              strcmp(termItemP->type, "@vocab") == 0)
     {
       if (childP->type == CorString)
-        vocabValueCompact(coreP, termItemP, childP);
+        vocabValueCompact(coreP, termItemP, childP, kaP);
       else if (childP->type == CorArray)
       {
         for (CorNode* elemP = childP->value.head; elemP != NULL; elemP = elemP->next)
         {
           if (elemP->type == CorString)
-            vocabValueCompact(coreP, termItemP, elemP);
+            vocabValueCompact(coreP, termItemP, elemP, kaP);
         }
       }
     }
@@ -203,7 +203,7 @@ static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
       for (CorNode* indexedP = childP->value.head; indexedP != NULL; indexedP = indexedP->next)
       {
         if (indexedP->type == CorObject)
-          compactObject(indexedP, coreP, level + 1);
+          compactObject(indexedP, coreP, level + 1, kaP);
       }
       continue;
     }
@@ -212,9 +212,9 @@ static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
       continue;
 
     if (childP->type == CorObject)
-      compactObject(childP, coreP, level + 1);
+      compactObject(childP, coreP, level + 1, kaP);
     else if (childP->type == CorArray)
-      compactArray(childP, coreP, level + 1);
+      compactArray(childP, coreP, level + 1, kaP);
   }
 }
 
@@ -227,14 +227,14 @@ static void compactObject(CorNode* objectP, CorLdContext* coreP, int level)
 // Arrays nest: a temporal "languageMaps" is [[{"languageMap": {...}}, time], ...],
 // and an object two arrays down is as much a node as one directly inside.
 //
-static void compactArray(CorNode* arrayP, CorLdContext* coreP, int level)
+static void compactArray(CorNode* arrayP, CorLdContext* coreP, int level, CorAlloc* kaP)
 {
   for (CorNode* itemP = arrayP->value.head; itemP != NULL; itemP = itemP->next)
   {
     if (itemP->type == CorObject)
-      compactObject(itemP, coreP, level);
+      compactObject(itemP, coreP, level, kaP);
     else if (itemP->type == CorArray)
-      compactArray(itemP, coreP, level);
+      compactArray(itemP, coreP, level, kaP);
   }
 }
 
@@ -244,19 +244,19 @@ static void compactArray(CorNode* arrayP, CorLdContext* coreP, int level)
 //
 // corLdCompactTreeWith -
 //
-void corLdCompactTreeWith(CorNode* treeP, CorLdContext* ctxP)
+void corLdCompactTreeWith(CorNode* treeP, CorLdContext* ctxP, CorAlloc* kaP)
 {
   if (treeP == NULL || ctxP == NULL)
     return;
 
   if (treeP->type == CorObject)
   {
-    compactObject(treeP, ctxP, 0);
+    compactObject(treeP, ctxP, 0, kaP);
   }
   else if (treeP->type == CorArray)
   {
     for (CorNode* itemP = treeP->value.head; itemP != NULL; itemP = itemP->next)
-      compactObject(itemP, ctxP, 0);
+      compactObject(itemP, ctxP, 0, kaP);
   }
 }
 
@@ -266,7 +266,7 @@ void corLdCompactTreeWith(CorNode* treeP, CorLdContext* ctxP)
 //
 // corLdCompactTree -
 //
-void corLdCompactTree(CorNode* treeP)
+void corLdCompactTree(CorNode* treeP, CorAlloc* kaP)
 {
-  corLdCompactTreeWith(treeP, corLdCoreContext());
+  corLdCompactTreeWith(treeP, corLdCoreContext(), kaP);
 }
