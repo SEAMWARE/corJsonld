@@ -662,13 +662,13 @@ static CorLdContext* coreContextFromEmbedded(CorAlloc* kaP)
     // corLdCoreContextBody lives for the process lifetime, so we point at
     // it directly rather than duplicating.
     //
-    // Kind stays "ImplicitlyCreated": "Cached" would drag the core into
-    // ?kind=Cached list filters and § 13.4.4's serve-content 422 for
-    // Cached entries — all blast radius, no conformance gain (the suite
-    // never asserts the core's kind).
+    // Its kind is "Cached" (§ 5.13.1): a copy of the @context at an external URL, kept so that it is
+    // never downloaded - compiled in instead of fetched. Not "ImplicitlyCreated", which is a @context
+    // the broker creates ex-novo for a user request. As every Cached one, it is not served on demand
+    // (§ 5.13.4.4: OperationNotSupported), its metadata is.
     //
     contextP->body = (char*) corLdCoreContextBody;
-    contextP->kind = CorLdKindImplicit;
+    contextP->kind = CorLdKindCached;
     corLdCacheInsert(contextP);
   }
 

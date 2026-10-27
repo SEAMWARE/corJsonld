@@ -97,6 +97,14 @@ CorLdContext*    corLdContextFromUrl(const char* url, CorAlloc* kaP); // uses ca
 `corLdContextFromObject` parses a single context object; `corLdContextFromUrl`
 downloads (or cache-hits) a remote context.
 
+An application that serves @contexts itself (a broker's `/jsonldContexts/{id}`) registers
+`corLdSetOwnContext(fn)`: on a cache miss `corLdContextFromUrl` asks it first, and a URL
+it says is its own is answered with its context - never downloaded, never cached a
+second time as a `Cached` copy.
+
+The core context's cache entry is of kind `Cached` (NGSI-LD § 5.13.1): a local copy of
+the @context at its external URL, compiled in instead of downloaded.
+
 ### Expansion / compaction
 
 ```c
