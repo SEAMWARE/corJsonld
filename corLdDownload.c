@@ -124,6 +124,25 @@ extern void corLdCacheDownloadingRemove(const char* url);
 
 // -----------------------------------------------------------------------------
 //
+// ownContext - corLdSetOwnContext's function; NULL: none
+//
+static CorLdOwnContextFunction ownContext = NULL;
+
+
+
+// -----------------------------------------------------------------------------
+//
+// corLdSetOwnContext -
+//
+void corLdSetOwnContext(CorLdOwnContextFunction fn)
+{
+  ownContext = fn;
+}
+
+
+
+// -----------------------------------------------------------------------------
+//
 // corLdContextFromUrl -
 //
 CorLdContext* corLdContextFromUrl(const char* url, CorAlloc* kaP)
@@ -171,6 +190,19 @@ CorLdContext* corLdContextFromUrl(const char* url, CorAlloc* kaP)
     contextP->ignored = true;
     corLdCacheInsert(contextP);
     return contextP;
+  }
+
+  //
+  // One of the application's own URLs: its context, never a download of it (corLdSetOwnContext)
+  //
+  if (ownContext != NULL)
+  {
+    bool own = false;
+
+    contextP = ownContext(url, &own);
+
+    if (own)
+      return contextP;
   }
 
   //
